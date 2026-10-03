@@ -36,11 +36,6 @@ git -C "$repo" fetch origin --prune --quiet
 from=$base
 git -C "$repo" show-ref --verify --quiet "refs/remotes/origin/$slug" && from="origin/$slug"
 
-created=$(herdr worktree create --cwd "$repo" --branch "$slug" --base "$from" --no-focus)
-workspace=$(jq -r '.result.workspace.workspace_id' <<<"$created")
-pane=$(jq -r '.result.root_pane.pane_id' <<<"$created")
-path=$(jq -r '.result.worktree.path' <<<"$created")
-
 envs=("$repo"/.codex/environments/*.toml)
 [[ -e "${envs[0]}" ]] || envs=()
 (( ${#envs[@]} <= 1 )) || die "several Codex environments in $repo/.codex/environments; keep one"
@@ -48,6 +43,11 @@ setup=""
 if (( ${#envs[@]} == 1 )); then
   setup=$(python3 -c 'import sys, tomllib; print(tomllib.load(open(sys.argv[1], "rb")).get("setup", {}).get("script", ""))' "${envs[0]}")
 fi
+
+created=$(herdr worktree create --cwd "$repo" --branch "$slug" --base "$from" --no-focus)
+workspace=$(jq -r '.result.workspace.workspace_id' <<<"$created")
+pane=$(jq -r '.result.root_pane.pane_id' <<<"$created")
+path=$(jq -r '.result.worktree.path' <<<"$created")
 
 if [[ -n "${setup//[[:space:]]/}" ]]; then
   script=$(mktemp "${TMPDIR:-/tmp}/bob-setup.XXXXXX")
@@ -57,7 +57,7 @@ if [[ -n "${setup//[[:space:]]/}" ]]; then
   herdr pane run "$pane" "bash -e $q; printf 'setup-exit=%s\n' \$?; rm -f $q" >/dev/null
   herdr pane wait-output "$pane" --regex 'setup-exit=[0-9]+' --timeout 600000 >/dev/null
   herdr pane read "$pane" --source recent-unwrapped --lines 40 | grep -q 'setup-exit=0' \
-    || die "setup failed in $pane ($path); read it with: herdr pane read $pane --source recent-unwrapped --lines 80; then fix and retry, or discard with: close --abandon $slug"
+    || die "setup failed in $pane ($path); read it with: herdr pane read $pane --source recent-unwrapped --lines 80; discard it with close --abandon $slug, then spawn again"
 fi
 
 # Workers run on Opus; the conductor keeps the frontier model for itself.

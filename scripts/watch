@@ -6,8 +6,9 @@ agent working in a checkout of this repo (the ones `spawn` started; the user's
 own sessions are unnamed and they watch those themselves; workers in other
 repos belong to those repos' conductors), and prints one line when an agent
 becomes blocked (an approval or question UI), done (finished a turn), or its
-pane exits. Each line is
-`<status> <pane> <cwd basename> <terminal title>`.
+pane exits. It also prints each worker already blocked or done when it starts
+watching it, since no event will report a transition that came first. Each
+line is `<status> <pane> <cwd basename> <terminal title>`.
 
 Agents named after start are picked up live: Herdr emits pane_updated when an
 agent is named, and that payload has no name, so each unknown pane is checked
@@ -80,6 +81,10 @@ def ours(a):
 def watch(a):
     watched[a["pane_id"]] = a
     subscribe([{"type": "pane.agent_status_changed", "pane_id": a["pane_id"]}])
+    # It may have finished or blocked before the subscription began; no event
+    # will report that, so report the current status.
+    if (now := agent(a["pane_id"])) and now.get("agent_status") in NOTIFY:
+        report(now["agent_status"], a["pane_id"])
 
 
 def report(status, pane_id):
@@ -93,29 +98,41 @@ for a in json.loads(subprocess.check_output(["herdr", "agent", "list"]))["result
         watch(a)
 subscribe([{"type": "pane.updated"}, {"type": "pane.exited"}])
 
+def handle(line):
+    msg = json.loads(line)
+    if "error" in msg:
+        sys.exit(f"watch: {msg['error']}")
+    # Events arrive as {"event": ..., "data": {...}}. Status events use the
+    # subscription name (pane.agent_status_changed); general ones use
+    # underscores (pane_updated, pane_exited).
+    event, data = msg.get("event"), msg.get("data", {})
+    if event == "pane.agent_status_changed" and data.get("agent_status") in NOTIFY:
+        report(data["agent_status"], data["pane_id"])
+    elif event == "pane_exited" and data.get("pane_id") in watched:
+        report("exited", data["pane_id"])
+    elif event == "pane_updated":
+        pane_id = data.get("pane", {}).get("pane_id")
+        if pane_id and pane_id not in watched and ours(a := agent(pane_id)):
+            watch(a)
+
+
+def drain():
+    """Handle every complete line already buffered, including lines that arrived
+    with a subscription's ack, before waiting on the sockets again."""
+    pending = True
+    while pending:
+        pending = False
+        for key in list(selector.get_map().values()):
+            while b"\n" in key.data["buf"]:
+                line, key.data["buf"] = key.data["buf"].split(b"\n", 1)
+                handle(line)
+                pending = True
+
+
 while True:
+    drain()
     for key, _ in selector.select():
         chunk = key.fileobj.recv(65536)
         if not chunk:
             sys.exit("watch: Herdr closed a subscription")
         key.data["buf"] += chunk
-        while b"\n" in key.data["buf"]:
-            line, key.data["buf"] = key.data["buf"].split(b"\n", 1)
-            msg = json.loads(line)
-            if "error" in msg:
-                sys.exit(f"watch: {msg['error']}")
-            # Events arrive as {"event": ..., "data": {...}}. Status events use the
-            # subscription name (pane.agent_status_changed); general ones use
-            # underscores (pane_updated, pane_exited).
-            event, data = msg.get("event"), msg.get("data", {})
-            if event == "pane.agent_status_changed" and data.get("agent_status") in NOTIFY:
-                report(data["agent_status"], data["pane_id"])
-            elif event == "pane_exited" and data.get("pane_id") in watched:
-                report("exited", data["pane_id"])
-            elif event == "pane_updated":
-                pane_id = data.get("pane", {}).get("pane_id")
-                if pane_id and pane_id not in watched and ours(a := agent(pane_id)):
-                    watch(a)
-                    # It may have finished or blocked before the subscription began.
-                    if (now := agent(pane_id)) and now.get("agent_status") in NOTIFY:
-                        report(now["agent_status"], pane_id)

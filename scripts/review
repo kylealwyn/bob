@@ -7,7 +7,8 @@
 #              the procedure and the PR, log, and diff as input
 #
 # Both run in parallel. Reports land in <git dir>/bob-review/<head>/ of the
-# worktree, so they stay out of the tree and out of the PR. fable.md opens with
+# worktree, so they stay out of the tree and out of the PR; `close` deletes
+# them with the worktree, so the verdicts' record is the PR body. fable.md opens with
 # the model IDs Claude reports it used, so the model is confirmed, not assumed.
 # Fable gets read-only built-in tools and no MCP servers, since its input (PR
 # body, commits, diff) is untrusted. Codex runs under its own configured sandbox.

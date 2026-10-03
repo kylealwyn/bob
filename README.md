@@ -6,7 +6,7 @@ Bob the Engineer is an agent skill that takes a request from understanding to a 
 /bob <dump> ──▶ Conductor (Herdr pane on the main checkout)
                   ├─ spawn ──▶ worker: worktree + setup + Claude Opus ──▶ PR ──▶ review
                   ├─ spawn ──▶ worker ...
-                  ├─ watch · checkin · merge at exact head · close
+                  ├─ watch (events) · groom every 10m · merge at exact head · close
                   ▼
                 you: one line per item, what needs you first
 ```

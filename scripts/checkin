@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # checkin — one line per spawned worker in this repo with the signals that show
 # drift: minutes into its current turn, commits ahead of the default branch,
-# uncommitted files, stray tmp files, and its PR. Read the flagged ones' panes.
+# uncommitted files, stray tmp files, and its PR with that PR's CI. The groom
+# reads the flagged ones' panes.
 #
 #   checkin            all named agents in this repo
 #   checkin <slug>...  only these
 #
-# Flags: TURN>30m, DIRTY>8 files, TMP files present, NOPR with commits ahead.
+# Flags: TURN>30m, DIRTY>8 files, TMP files present, NOPR with commits ahead,
+# CIFAIL on the open PR's head.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 require_herdr
@@ -36,7 +38,11 @@ while IFS= read -r a; do
   pr=""
   if [[ -n "$branch" ]]; then
     pr=$(gh pr list --repo "$gh" --head "$branch" --state open --json number --jq '.[0].number // empty' 2>/dev/null || true)
-    if [[ -z "$pr" ]]; then
+    if [[ -n "$pr" ]]; then
+      ci=$(gh pr checks "$pr" --repo "$gh" --json bucket --jq '[.[].bucket] |
+        if any(. == "fail") then "fail" elif any(. == "pending") then "pending" elif length > 0 then "pass" else empty end' 2>/dev/null || true)
+      pr+=" ci:${ci:-none}"
+    else
       merged=$(gh pr list --repo "$gh" --head "$branch" --state merged --json number --jq '.[0].number // empty' 2>/dev/null || true)
       [[ -n "$merged" ]] && pr="$merged merged"
     fi
@@ -46,5 +52,6 @@ while IFS= read -r a; do
   (( dirty > 8 )) && flags+=" DIRTY"
   (( tmp > 0 )) && flags+=" TMP"
   [[ -z "$pr" && "$ahead" != "?" && "$ahead" -gt 0 ]] && flags+=" NOPR"
+  [[ "$pr" == *ci:fail ]] && flags+=" CIFAIL"
   printf '%-24s %-8s %6s %5s %5s %4s  %s%s\n' "$name" "$status" "$turn" "$ahead" "$dirty" "$tmp" "${pr:+#$pr}" "$flags"
 done <<<"$agents"

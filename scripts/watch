@@ -62,8 +62,14 @@ def subscribe(subscriptions):
         buf += chunk
     ack, buf = buf.split(b"\n", 1)
     if "error" in (msg := json.loads(ack)):
+        sock.close()
+        # A worker's pane can close between the lookup and the subscription;
+        # that drops one worker, not the watch.
+        if msg["error"].get("code") == "pane_not_found":
+            return False
         sys.exit(f"watch: {msg['error']}")
     selector.register(sock, selectors.EVENT_READ, data={"buf": buf})
+    return True
 
 
 def agent(pane_id):
@@ -79,8 +85,9 @@ def ours(a):
 
 
 def watch(a):
+    if not subscribe([{"type": "pane.agent_status_changed", "pane_id": a["pane_id"]}]):
+        return
     watched[a["pane_id"]] = a
-    subscribe([{"type": "pane.agent_status_changed", "pane_id": a["pane_id"]}])
     # It may have finished or blocked before the subscription began; no event
     # will report that, so report the current status.
     if (now := agent(a["pane_id"])) and now.get("agent_status") in NOTIFY:

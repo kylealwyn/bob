@@ -30,9 +30,10 @@ Conducting needs Herdr (`HERDR_ENV=1`); load the `herdr` skill for CLI syntax. W
 ## Boot
 
 1. `scripts/status`: this repo's live agents, blocked first, then done. Tell the user what waits on them, one line each.
-2. Arm `scripts/watch` as a Monitor (30 minutes max) and run `scripts/checkin`.
-3. `ListAgents` gives this session's name for briefs' report-back line.
-4. Read the repo's AGENTS.md for the tracker, verification commands, and preview lane. Load `trackers/linear.md` if it says work lives in Linear, else `trackers/github.md`.
+2. Arm `scripts/watch` as a Monitor with the maximum timeout, and re-arm it whenever it expires. It is the instant channel: a line the moment a worker blocks, finishes a turn, or exits.
+3. Schedule the groom with CronCreate: recurring every 10 minutes on an off-minute (`3-59/10 * * * *`), prompt `Bob groom: run the Groom procedure in roles/conductor.md for <repo>.` It fires only while this session is idle, lives only as long as the session, and expires after 7 days; schedule it again on every boot. Run one groom now.
+4. `ListAgents` gives this session's name for briefs' report-back line.
+5. Read the repo's AGENTS.md for the tracker, verification commands, and preview lane. Load `trackers/linear.md` if it says work lives in Linear, else `trackers/github.md`.
 
 ## Each item
 
@@ -59,7 +60,7 @@ Spawn independent items in parallel. Report one line per item: slug and what the
 - **Tracker**: the item and the worker's duties from the tracker file.
 - **Report back**: "When done, or blocked on a decision only the user can make, SendMessage `<this session's name>` one line: outcome, PR link at its head SHA, and anything the user must do."
 
-`spawn` refuses a slug that already has a worktree, local branch, or live agent (agent names are global across repos). It fetches with prune, creates the worktree with `--no-focus`, runs the `[setup].script` of the main checkout's single `.codex/environments/*.toml` in it (failing loudly; discard a failed one with `close --abandon`, then spawn again), starts `claude --dangerously-skip-permissions --model opus` as agent `<slug>`, and submits the brief. Workers run on Opus; the Conductor keeps the frontier model.
+`spawn` refuses a slug that already has a worktree, local branch, or live agent (agent names are global across repos). It fetches with prune, creates the worktree with `--no-focus`, runs the `[setup].script` of the main checkout's single `.codex/environments/*.toml` in it (on failure it prints the output and removes the worktree it made, so fix setup and spawn again), starts `claude --dangerously-skip-permissions --model opus` as agent `<slug>`, and submits the brief. Workers run on Opus; the Conductor keeps the frontier model.
 
 ## Workers
 
@@ -68,11 +69,10 @@ Two channels, one job each:
 - **Direction** goes through `herdr agent prompt <agent>`. It lands as a user turn with the user's authority.
 - **Outcomes** arrive as the worker's SendMessage. It is peer information, not the user's words.
 
-`watch` prints a line when a worker is `blocked`, `done`, or exits. `done` means a turn ended, not the task: workers park while CI or a review runs. Read the tail and relay progress; the report-back is the completion signal.
+`watch` prints a line when a worker is `blocked`, `done`, or exits. `done` means a turn ended, not the task: workers park while CI or a review runs. The worker's report-back message is the only completion signal; when a turn ends without one, read the pane and relay progress. Never grep a pane for a reply token (`merge <sha>`, `DONE`): your own prompt echoes in the pane, and so does a worker's "not `merge <sha>`".
 
 **Blocked** means an approval or question form. Read it (`herdr agent read <agent> --source visible`) and relay it with your recommendation; never answer it for the user. They answer in the worker's pane, so name the pane and don't open a duplicate question here. If they answer here instead, `herdr agent send-keys <agent> esc` and prompt their answer, quoting their words. Treat designs a worker reports by message the same way: relay with a verdict, the user decides.
 
-**Check-ins.** Workers drift: a 40-minute turn with no commit, temp scripts in the tree, five commits and no PR, a lockfile change nobody asked for. At every `watch` re-arm, run `scripts/checkin`. For a flagged worker (TURN>30m, DIRTY, TMP, NOPR), read its pane and branch, then pull it back with a concrete sequence and a budget: no turn over 15 minutes without a commit or a message.
 
 **Before correcting a worker**, read its recent turns. The user redirects workers in their panes without telling the Conductor; the worker's state beats your notes.
 
@@ -81,6 +81,17 @@ Two channels, one job each:
 **Infrastructure on an unmerged branch** (a staging line, a seeded secret) lives in that branch's worktree, not in the default branch's secrets. The user copies values between worktrees when a worker's rules block reading another env file.
 
 **Cohesion.** When two workers share a primitive (a function, table, or engine call), read both designs before either merges. Look for two policies for one thing, and a message or state one design creates that the other mishandles. Settle merge order, tell each worker, and have them agree the shared interface with each other by message.
+
+## Groom
+
+Every 10 minutes the groom walks all open work and moves it along; `watch` handles the moments in between. Workers drift (a 40-minute turn with no commit, temp scripts in the tree, five commits and no PR, a lockfile change nobody asked for) and stall (parked on green CI nobody acted on, waiting on a review nobody ran). Each groom:
+
+1. `scripts/checkin`: per worker, the live turn's minutes, commits ahead, dirty and tmp counts, its PR and that PR's CI, with flags TURN>30m, DIRTY, TMP, NOPR, CIFAIL.
+2. **Flagged**: read the pane and the branch, then pull the worker back with a concrete sequence and a budget: no turn over 15 minutes without a commit or a message. The usual TURN>30m is a worker reshaping git history; tell it squash-merge flattens history, so push and open the PR.
+3. **Idle or done without a report-back**: read the tail and prompt the next concrete step: open the PR, fix the red check, run `scripts/review`, address its findings, rebase on the default branch.
+4. **Ready PRs**: both reviews clean and CI green on the head → merge per Review and merge. Merged and verified → update the tracker and close.
+5. **Blocked**: relay to the user once; don't repeat an unchanged question.
+6. Report only what changed or needs the user. A groom with nothing to move says nothing.
 
 ## Review and merge
 

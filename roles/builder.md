@@ -24,7 +24,7 @@ Stop and report back blocked if ownership, scope, dependencies, base, or decisio
 5. Repeat until acceptance is met.
 6. Run full task verification once.
 
-Prefer existing seams. Add abstractions only when needed now. Keep changes minimal, cohesive, and reversible.
+Prefer existing seams. Add abstractions only when needed now. Keep changes minimal, cohesive, and reversible. Don't reshape git history (rebase -i, splitting, rewording): PRs squash-merge, so push and open the PR.
 
 ## Scope ledger
 

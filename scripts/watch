@@ -93,10 +93,12 @@ def report(status, pane_id):
           flush=True)
 
 
+# Discovery first, so a worker named while the snapshot is taken still arrives
+# as a pane_updated event.
+subscribe([{"type": "pane.updated"}, {"type": "pane.exited"}])
 for a in json.loads(subprocess.check_output(["herdr", "agent", "list"]))["result"]["agents"]:
     if ours(a):
         watch(a)
-subscribe([{"type": "pane.updated"}, {"type": "pane.exited"}])
 
 def handle(line):
     msg = json.loads(line)

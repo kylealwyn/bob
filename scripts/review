@@ -47,7 +47,8 @@ fi
   printf '\n## Diff\n\n```diff\n'; git diff "$base...$head"; printf '```\n'
 } >"$out/fable-prompt.md"
 
-codex review --base "$base" >"$out/codex.md" 2>"$out/codex.log" &
+# Neither reviewer may read the terminal: a CLI waiting on stdin hangs forever.
+codex review --base "$base" </dev/null >"$out/codex.md" 2>"$out/codex.log" &
 codex_pid=$!
 
 fable() {

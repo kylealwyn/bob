@@ -6,7 +6,7 @@ agent working in a checkout of this repo (the ones `spawn` started; the user's
 own sessions are unnamed and they watch those themselves; workers in other
 repos belong to those repos' conductors), and prints one line when an agent
 becomes blocked (an approval or question UI), done (finished a turn), or its
-pane exits. It also prints each worker already blocked or done when it starts
+pane exits or its agent quits. It also prints each worker already blocked or done when it starts
 watching it, since no event will report a transition that came first. Each
 line is `<status> <pane> <cwd basename> <terminal title>`.
 
@@ -47,7 +47,7 @@ selector = selectors.DefaultSelector()
 watched = {}  # pane_id -> agent dict
 
 
-def subscribe(subscriptions):
+def subscribe(subscriptions, pane_id=None):
     sock = socket.socket(socket.AF_UNIX)
     sock.connect(os.environ["HERDR_SOCKET_PATH"])
     sock.sendall((json.dumps({"id": "watch", "method": "events.subscribe",
@@ -68,7 +68,7 @@ def subscribe(subscriptions):
         if msg["error"].get("code") == "pane_not_found":
             return False
         sys.exit(f"watch: {msg['error']}")
-    selector.register(sock, selectors.EVENT_READ, data={"buf": buf})
+    selector.register(sock, selectors.EVENT_READ, data={"buf": buf, "pane_id": pane_id})
     return True
 
 
@@ -85,13 +85,21 @@ def ours(a):
 
 
 def watch(a):
-    if not subscribe([{"type": "pane.agent_status_changed", "pane_id": a["pane_id"]}]):
+    if not subscribe([{"type": "pane.agent_status_changed", "pane_id": a["pane_id"]}], a["pane_id"]):
         return
     watched[a["pane_id"]] = a
     # It may have finished or blocked before the subscription began; no event
     # will report that, so report the current status.
     if (now := agent(a["pane_id"])) and now.get("agent_status") in NOTIFY:
         report(now["agent_status"], a["pane_id"])
+
+
+def forget(pane_id):
+    watched.pop(pane_id, None)
+    for key in list(selector.get_map().values()):
+        if key.data["pane_id"] == pane_id:
+            selector.unregister(key.fileobj)
+            key.fileobj.close()
 
 
 def report(status, pane_id):
@@ -119,9 +127,16 @@ def handle(line):
         report(data["agent_status"], data["pane_id"])
     elif event == "pane_exited" and data.get("pane_id") in watched:
         report("exited", data["pane_id"])
+        forget(data["pane_id"])
     elif event == "pane_updated":
         pane_id = data.get("pane", {}).get("pane_id")
-        if pane_id and pane_id not in watched and ours(a := agent(pane_id)):
+        if pane_id in watched:
+            # The agent can quit or crash back to its shell with the pane still
+            # open; no status or exit event says so.
+            if agent(pane_id) is None:
+                report("exited", pane_id)
+                forget(pane_id)
+        elif pane_id and ours(a := agent(pane_id)):
             watch(a)
 
 
@@ -143,5 +158,8 @@ while True:
     for key, _ in selector.select():
         chunk = key.fileobj.recv(65536)
         if not chunk:
-            sys.exit("watch: Herdr closed a subscription")
+            if key.data["pane_id"] is None:
+                sys.exit("watch: Herdr closed the discovery subscription")
+            forget(key.data["pane_id"])
+            continue
         key.data["buf"] += chunk

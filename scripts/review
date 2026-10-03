@@ -60,8 +60,9 @@ status=0
 wait "$codex_pid" || { echo "codex review failed; see $out/codex.log" >&2; status=1; }
 wait "$fable_pid" || { echo "fable review failed; see $out/fable.log" >&2; status=1; }
 
-[[ "$(git rev-parse HEAD)" == "$head" ]] \
-  || { echo "HEAD moved during review; the reports may not match $head. Rerun." >&2; status=1; }
+[[ "$(git rev-parse HEAD)" == "$head" && -z "$(git status --porcelain)" ]] \
+  || { echo "the worktree changed during review; the reports may not match $head. Rerun." >&2; status=1; }
+[[ -s "$out/codex.md" ]] || { echo "codex review wrote no report; see $out/codex.log" >&2; status=1; }
 
 for f in codex fable; do [[ -s "$out/$f.md" ]] && printf '%s  %s\n' "$f" "$out/$f.md"; done
 (( status == 0 )) || exit "$status"
@@ -70,6 +71,8 @@ for f in codex fable; do [[ -s "$out/$f.md" ]] && printf '%s  %s\n' "$f" "$out/$
 # there at the exact head, and the record outlives the worktree.
 findings=$(grep -oE '^- \[P[0-9]\]' "$out/codex.md" | grep -oE 'P[0-9]' | sort | uniq -c | awk '{printf "%s%s x%s", sep, $2, $1; sep=", "}' || true)
 verdict=$(grep -m1 -oE '^Verdict: [a-z_]+' "$out/fable.md" | cut -d' ' -f2 || true)
-summary="Bob review at $head: Codex ${findings:-no findings} · Fable ${verdict:-no verdict line, see fable.md}"
+# Fail closed: untagged Codex output is quoted, not read as clean.
+[[ -n "$findings" ]] || findings="no tagged findings (\"$(head -c 160 "$out/codex.md" | head -1)\")"
+summary="Bob review at $head: Codex $findings · Fable ${verdict:-no verdict line, see fable.md}"
 printf '%s\n' "$summary"
 [[ -z "$pr" ]] || gh pr comment "$branch" --repo "$(gh_repo)" --body "$summary" >/dev/null

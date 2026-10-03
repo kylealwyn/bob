@@ -58,7 +58,7 @@ if [[ -n "${setup//[[:space:]]/}" ]]; then
   if ! herdr pane wait-output "$pane" --regex 'setup-exit=[0-9]+' --timeout 600000 >/dev/null ||
      ! herdr pane read "$pane" --source recent-unwrapped --lines 40 | grep -q 'setup-exit=0'; then
     # Undo only what spawn created; a picked-up origin/<slug> stays on origin.
-    herdr pane read "$pane" --source recent-unwrapped --lines 80 >&2
+    herdr pane read "$pane" --source recent-unwrapped --lines 80 >&2 || true
     herdr worktree remove --workspace "$workspace" --force >/dev/null
     git -C "$repo" branch -D "$slug" >/dev/null 2>&1 || true
     rm -f "$script"

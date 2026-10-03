@@ -64,8 +64,9 @@ for slug in "$@"; do
   # The fetch above pruned branches GitHub already deleted on merge. The lease
   # keeps a push made since then.
   if [[ -n "$remote_tip" ]]; then
-    git -C "$repo" push origin --delete --force-with-lease="$slug:$remote_tip" "$slug" --quiet 2>/dev/null \
-      || { refuse "origin/$slug moved since the fetch; worktree and local branch removed, remote kept"; continue; }
+    if ! err=$(git -C "$repo" push origin --delete --force-with-lease="$slug:$remote_tip" "$slug" --quiet 2>&1); then
+      refuse "worktree and local branch removed, but deleting origin/$slug failed: ${err##*$'\n'}"; continue
+    fi
   fi
   echo "$slug: closed"
 done

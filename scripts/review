@@ -9,17 +9,22 @@
 # Both run in parallel. Reports land in <git dir>/bob-review/<head>/ of the
 # worktree, so they stay out of the tree and out of the PR. fable.md opens with
 # the model IDs Claude reports it used, so the model is confirmed, not assumed.
-# Run it in the worker's worktree with a clean tree; it reviews HEAD, not
-# uncommitted edits. Exits non-zero if either review fails to run.
+# Fable gets read-only built-in tools and no MCP servers, since its input (PR
+# body, commits, diff) is untrusted. Codex runs under its own configured sandbox.
+#
+# Run it in the worker's worktree with a clean tree and don't commit while it
+# runs: it reviews HEAD, and fails if HEAD moved before both reports were in.
+# Exits non-zero if either review fails to run.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 roles="$(cd "$(dirname "$0")/.." && pwd)/roles"
+worktree=$(git rev-parse --show-toplevel)
 
 [[ -z "$(git status --porcelain)" ]] || die "uncommitted changes; commit them so the review pins an exact head"
 git fetch origin --quiet
 head=$(git rev-parse HEAD)
 branch=$(git branch --show-current)
-[[ -n "$(git rev-list "$base..HEAD")" ]] || die "HEAD has no commits beyond $base"
+[[ -n "$(git rev-list "$base..$head")" ]] || die "HEAD has no commits beyond $base"
 out="$(git rev-parse --path-format=absolute --git-dir)/bob-review/$head"
 mkdir -p "$out"
 
@@ -31,10 +36,10 @@ pr=""
   cat "$roles/reviewer.md"
   printf '\n---\n\nReview this artifact with the procedure above. You are read-only: do not edit files.\n\n'
   printf 'Repository: %s\nReviewed: %s at %s against %s (merge base %s)\n\n' \
-    "$repo" "${branch:-detached}" "$head" "$base" "$(git merge-base "$base" HEAD)"
+    "$worktree" "${branch:-detached}" "$head" "$base" "$(git merge-base "$base" "$head")"
   printf '## Pull request\n\n%s\n\n' "${pr:-none open}"
-  printf '## Commits\n\n'; git log --format='%h %s%n%n%b' "$base..HEAD"
-  printf '\n## Diff\n\n```diff\n'; git diff "$base...HEAD"; printf '```\n'
+  printf '## Commits\n\n'; git log --format='%h %s%n%n%b' "$base..$head"
+  printf '\n## Diff\n\n```diff\n'; git diff "$base...$head"; printf '```\n'
 } >"$out/fable-prompt.md"
 
 codex review --base "$base" >"$out/codex.md" 2>"$out/codex.log" &
@@ -42,7 +47,7 @@ codex_pid=$!
 
 fable() {
   local json
-  json=$(claude -p --model claude-fable-5-1 --output-format json --tools Read,Grep,Glob <"$out/fable-prompt.md")
+  json=$(claude -p --model claude-fable-5-1 --output-format json --tools Read,Grep,Glob --strict-mcp-config <"$out/fable-prompt.md")
   jq -r '"Model: \(.modelUsage | keys | join(", "))\n\n\(.result)"' <<<"$json" >"$out/fable.md"
   [[ "$(jq -r .is_error <<<"$json")" == false ]]
 }
@@ -52,6 +57,9 @@ fable_pid=$!
 status=0
 wait "$codex_pid" || { echo "codex review failed; see $out/codex.log" >&2; status=1; }
 wait "$fable_pid" || { echo "fable review failed; see $out/fable.log" >&2; status=1; }
+
+[[ "$(git rev-parse HEAD)" == "$head" ]] \
+  || { echo "HEAD moved during review; the reports may not match $head. Rerun." >&2; status=1; }
 
 printf 'head %s\n' "$head"
 for f in codex fable; do [[ -s "$out/$f.md" ]] && printf '%s  %s\n' "$f" "$out/$f.md"; done

@@ -60,7 +60,7 @@ Each scopes to the repo of the checkout it runs in, so Conductors in two repos n
 | `watch` | prints when a worker blocks, finishes a turn, or exits; run as a Monitor |
 | `checkin [slug...]` | drift per worker: turn minutes, commits ahead, dirty, tmp, PR |
 | `review` | Codex and Fable reviews of HEAD, reports under the worktree's git dir |
-| `close <slug>...` | stops the agent, removes worktree and workspace, deletes the branch |
+| `close [--abandon] <slug>...` | stops the agent, removes worktree and workspace, deletes the branch; refuses unmerged or dirty work |
 
 ## Working standard
 

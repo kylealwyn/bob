@@ -51,7 +51,18 @@ def subscribe(subscriptions):
     sock.connect(os.environ["HERDR_SOCKET_PATH"])
     sock.sendall((json.dumps({"id": "watch", "method": "events.subscribe",
                               "params": {"subscriptions": subscriptions}}) + "\n").encode())
-    selector.register(sock, selectors.EVENT_READ, data={"buf": b""})
+    # Block until Herdr acknowledges, so a status read after this returns can't
+    # miss a transition that no event will report.
+    buf = b""
+    while b"\n" not in buf:
+        chunk = sock.recv(65536)
+        if not chunk:
+            sys.exit("watch: Herdr closed the socket before acknowledging a subscription")
+        buf += chunk
+    ack, buf = buf.split(b"\n", 1)
+    if "error" in (msg := json.loads(ack)):
+        sys.exit(f"watch: {msg['error']}")
+    selector.register(sock, selectors.EVENT_READ, data={"buf": buf})
 
 
 def agent(pane_id):
@@ -105,3 +116,6 @@ while True:
                 pane_id = data.get("pane", {}).get("pane_id")
                 if pane_id and pane_id not in watched and ours(a := agent(pane_id)):
                     watch(a)
+                    # It may have finished or blocked before the subscription began.
+                    if (now := agent(pane_id)) and now.get("agent_status") in NOTIFY:
+                        report(now["agent_status"], pane_id)

@@ -59,7 +59,7 @@ Spawn independent items in parallel. Report one line per item: slug and what the
 - **Tracker**: the item and the worker's duties from the tracker file.
 - **Report back**: "When done, or blocked on a decision only the user can make, SendMessage `<this session's name>` one line: outcome, PR link at its head SHA, and anything the user must do."
 
-`spawn` refuses a slug that already has a worktree, local branch, or live agent (agent names are global across repos). It fetches, fast-forwards a clean main checkout, creates the worktree with `--no-focus`, runs the `[setup].script` of the repo's single `.codex/environments/*.toml` (failing loudly), starts `claude --dangerously-skip-permissions --model opus` as agent `<slug>`, and submits the brief. Workers run on Opus; the Conductor keeps the frontier model.
+`spawn` refuses a slug that already has a worktree, local branch, or live agent (agent names are global across repos). It fetches with prune, creates the worktree with `--no-focus`, runs the `[setup].script` of the main checkout's single `.codex/environments/*.toml` in it (failing loudly; discard a failed one with `close --abandon`), starts `claude --dangerously-skip-permissions --model opus` as agent `<slug>`, and submits the brief. Workers run on Opus; the Conductor keeps the frontier model.
 
 ## Workers
 
@@ -92,7 +92,7 @@ After merge, update the tracker per the tracker file. After several merges in a 
 
 ## Close
 
-`scripts/close <slug>...` once the PR merged and post-merge verification reported, or the user abandoned the work. It stops the agent, removes the worktree and workspace, and deletes the branch locally and on origin; it refuses dirty trees and open PRs. Close only what you spawned unless asked. Keep only in-flight work open.
+`scripts/close <slug>...` once the PR merged and post-merge verification reported. It closes the workspace (stopping the agent), removes the worktree, and deletes the branch locally and on origin. It refuses an open PR, a tip that isn't merged, and uncommitted or untracked files (checked after the agent stops). When the user abandons the work, `scripts/close --abandon <slug>` skips the merged check only. Close only what you spawned unless asked. Keep only in-flight work open.
 
 ## Rules
 

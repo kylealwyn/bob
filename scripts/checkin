@@ -32,7 +32,7 @@ while IFS= read -r a; do
   ahead=$(git -C "$cwd" rev-list --count "$base..HEAD" 2>/dev/null || echo "?")
   porcelain=$(git -C "$cwd" status --porcelain 2>/dev/null || true)
   dirty=$(grep -c . <<<"$porcelain" || true)
-  tmp=$(grep -ciE '(^|/)tmp[-_.]|\.tmp\.' <<<"$porcelain" || true)
+  tmp=$(cut -c4- <<<"$porcelain" | grep -ciE '(^|/)tmp[-_.]|\.tmp\.' || true)
   pr=""
   if [[ -n "$branch" ]]; then
     pr=$(gh pr list --repo "$gh" --head "$branch" --state open --json number --jq '.[0].number // empty' 2>/dev/null || true)

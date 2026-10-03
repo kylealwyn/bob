@@ -1,48 +1,55 @@
 #!/usr/bin/env bash
-# close <slug> [<slug>...]
+# close [--abandon] <slug>...
 #
-# Closes a finished workspace of this repo: stops its agent, removes the Herdr
-# workspace and worktree, and deletes the branch locally and on origin. Refuses
-# a worktree with uncommitted changes or a branch whose PR is still open, so
-# only merged or abandoned work closes. Prints one line per slug.
+# Closes finished work in this repo: closes the Herdr workspace (which stops its
+# agent), removes the worktree, and deletes the branch locally and on origin.
+# Prints one line per slug and exits non-zero if any slug was refused.
+#
+# Refuses, per slug:
+#   - an open PR on the branch;
+#   - a branch tip that is neither on the default branch nor the head of a
+#     merged PR (squash merges leave the tip off the default branch), unless
+#     --abandon says the work is meant to be thrown away;
+#   - uncommitted or untracked files, checked after the agent has stopped so
+#     nothing it writes on the way out is lost (git worktree remove, unforced).
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 require_herdr
-[[ $# -ge 1 ]] || die "usage: close <slug> [<slug>...]"
+
+abandon=false
+[[ "${1:-}" == --abandon ]] && { abandon=true; shift; }
+[[ $# -ge 1 ]] || die "usage: close [--abandon] <slug>..."
 
 gh=$(gh_repo)
+git -C "$repo" fetch origin --prune --quiet
+failed=0
+refuse() { echo "$slug: $*, not closing"; failed=1; }
+
 for slug in "$@"; do
   path=$(git -C "$repo" worktree list --porcelain | awk -v want="$slug" '
     /^worktree / {p = substr($0, 10)} /^branch / && $0 == "branch refs/heads/" want {print p; exit}')
-  if [[ -z "$path" ]]; then
-    path=$(herdr worktree list --cwd "$repo" | jq -r --arg s "$slug" '.result.worktrees[] | select(.path | endswith("/" + $s)) | .path')
-  fi
-  [[ -n "$path" && -d "$path" ]] || { echo "$slug: no worktree"; continue; }
-  [[ "$path" != "$repo" ]] || { echo "$slug: is the main checkout, not closing"; continue; }
+  [[ -n "$path" ]] || { refuse "no worktree on branch $slug"; continue; }
+  [[ "$path" != "$repo" ]] || { refuse "is the main checkout"; continue; }
 
-  branch=$(git -C "$path" branch --show-current)
-  if [[ -n "$(git -C "$path" status --porcelain)" ]]; then
-    echo "$slug: uncommitted changes in $path, not closing"; continue
-  fi
-  # A detached worktree has no branch; an empty --head would match every PR.
-  pr=""
-  if [[ -n "$branch" ]]; then
-    pr=$(gh pr list --repo "$gh" --head "$branch" --state open --json number --jq '.[0].number // empty')
-  fi
-  if [[ -n "$pr" ]]; then
-    echo "$slug: PR #$pr is still open, not closing"; continue
+  tip=$(git -C "$path" rev-parse HEAD)
+  pr=$(gh pr list --repo "$gh" --head "$slug" --state open --json number --jq '.[0].number // empty')
+  [[ -z "$pr" ]] || { refuse "PR #$pr is still open"; continue; }
+  if ! $abandon && ! git -C "$repo" merge-base --is-ancestor "$tip" "$base"; then
+    merged=$(gh pr list --repo "$gh" --head "$slug" --state merged --json number,headRefOid |
+      jq -r --arg tip "$tip" '[.[] | select(.headRefOid == $tip)][0].number // empty')
+    [[ -n "$merged" ]] || { refuse "tip ${tip:0:7} is not merged (pass --abandon to discard it)"; continue; }
   fi
 
   workspace=$(herdr worktree list --cwd "$repo" | jq -r --arg p "$path" '.result.worktrees[] | select(.path == $p) | .open_workspace_id // empty')
-  if [[ -n "$workspace" ]]; then
-    herdr agent send-keys "$slug" ctrl+c ctrl+c >/dev/null 2>&1 || true
-    herdr worktree remove --workspace "$workspace" --force >/dev/null
-  else
-    git -C "$repo" worktree remove --force "$path"
+  [[ -z "$workspace" ]] || herdr workspace close "$workspace" >/dev/null
+  if ! err=$(git -C "$repo" worktree remove "$path" 2>&1); then
+    refuse "${err#fatal: }"; continue
   fi
-  if [[ -n "$branch" ]]; then
-    git -C "$repo" branch -D "$branch" >/dev/null 2>&1 || true
-    git -C "$repo" push origin --delete "$branch" >/dev/null 2>&1 || true
+  git -C "$repo" branch -D "$slug" >/dev/null
+  # The fetch above pruned branches GitHub already deleted on merge.
+  if git -C "$repo" show-ref --verify --quiet "refs/remotes/origin/$slug"; then
+    git -C "$repo" push origin --delete "$slug" --quiet
   fi
-  echo "$slug: closed (${branch:-detached})"
+  echo "$slug: closed"
 done
+exit "$failed"

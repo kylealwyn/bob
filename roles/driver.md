@@ -48,4 +48,4 @@ Cleanup:
 Automated verification:
 ```
 
-Project-specific launch commands, identifiers, targets, and stop rules belong in the project contract.
+Project-specific launch commands, identifiers, targets, and stop rules belong in the repo's AGENTS.md.

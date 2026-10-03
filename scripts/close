@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # close <slug> [<slug>...]
 #
-# Closes a finished workspace: stops its agent, removes the Herdr workspace and
-# worktree, and deletes the branch locally and on origin. Refuses a worktree
-# with uncommitted changes or a branch whose PR is still open, so only merged
-# or abandoned work closes. Prints one line per slug.
+# Closes a finished workspace of this repo: stops its agent, removes the Herdr
+# workspace and worktree, and deletes the branch locally and on origin. Refuses
+# a worktree with uncommitted changes or a branch whose PR is still open, so
+# only merged or abandoned work closes. Prints one line per slug.
 set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+require_herdr
+[[ $# -ge 1 ]] || die "usage: close <slug> [<slug>...]"
 
-repo="${KIN_REPO:-$HOME/dev/kin}"
-[[ "${HERDR_ENV:-}" == 1 ]] || { echo "close: not running inside Herdr" >&2; exit 1; }
-[[ $# -ge 1 ]] || { echo "usage: close <slug> [<slug>...]" >&2; exit 1; }
-
+gh=$(gh_repo)
 for slug in "$@"; do
   path=$(git -C "$repo" worktree list --porcelain | awk -v want="$slug" '
     /^worktree / {p = substr($0, 10)} /^branch / && $0 == "branch refs/heads/" want {print p; exit}')
@@ -18,6 +18,7 @@ for slug in "$@"; do
     path=$(herdr worktree list --cwd "$repo" | jq -r --arg s "$slug" '.result.worktrees[] | select(.path | endswith("/" + $s)) | .path')
   fi
   [[ -n "$path" && -d "$path" ]] || { echo "$slug: no worktree"; continue; }
+  [[ "$path" != "$repo" ]] || { echo "$slug: is the main checkout, not closing"; continue; }
 
   branch=$(git -C "$path" branch --show-current)
   if [[ -n "$(git -C "$path" status --porcelain)" ]]; then
@@ -26,8 +27,7 @@ for slug in "$@"; do
   # A detached worktree has no branch; an empty --head would match every PR.
   pr=""
   if [[ -n "$branch" ]]; then
-    pr=$(gh pr list --repo "$(git -C "$repo" remote get-url origin | sed -E 's#.*[:/]([^/]+/[^/]+)\.git$#\1#')" \
-          --head "$branch" --state open --json number --jq '.[0].number // empty' 2>/dev/null || true)
+    pr=$(gh pr list --repo "$gh" --head "$branch" --state open --json number --jq '.[0].number // empty')
   fi
   if [[ -n "$pr" ]]; then
     echo "$slug: PR #$pr is still open, not closing"; continue

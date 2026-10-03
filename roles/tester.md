@@ -43,4 +43,4 @@ Report:
 - skipped checks and reason;
 - artifact location for failures or visual acceptance.
 
-Never claim behavioral pass from compilation alone, a screenshot without state evidence, or output produced before the final edit. Project-specific commands and tiers belong in the project contract.
+Never claim behavioral pass from compilation alone, a screenshot without state evidence, or output produced before the final edit. Project-specific commands and tiers belong in the repo's AGENTS.md.

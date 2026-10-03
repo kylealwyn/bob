@@ -46,17 +46,17 @@ Propose:
 
 - **Destination:** the observable state meaning brainstorming is complete.
 - **Decisions so far:** approved names with one-line outcomes.
-- **Not yet specified:** in-scope fog not yet sharp enough for a node.
+- **Not yet specified:** in-scope fog not yet sharp enough to act on.
 - **Out of scope:** consciously excluded work.
 
-Propose a node only for one precise question:
+Propose a next step only for one precise question:
 
 - **Research:** current evidence can answer it.
 - **Prototype:** a disposable artifact is needed for reaction or measurement.
 - **Grill:** the answer belongs to the user.
 - **Task:** concrete work is required only to unblock a decision.
 
-Include dependency edges. The map is an index, not a second source of truth. Bob the Coordinator alone applies its revision-bound patch.
+Include dependencies between steps. The map is an index, not a second source of truth. Bob the Coordinator turns approved steps into tracker items and workers.
 
 ## Path completion
 
@@ -89,7 +89,7 @@ Out of scope:
 Ownership:
 Failure and compatibility:
 Verification:
-Proposed graph patch:
+Proposed next steps:
 Approval required:
 Next role: none | Bob the Builder | Bob the Designer | Bob the Planner
 ```

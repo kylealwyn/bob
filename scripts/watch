@@ -2,9 +2,11 @@
 """watch — stream agent state changes that need the orchestrator.
 
 Subscribes over the Herdr socket to pane.agent_status_changed for every named
-agent (the ones `spawn` started; Kyle's own sessions are unnamed and he watches
-those himself), and prints one line when an agent becomes blocked (an approval
-or question UI), done (finished a turn), or its pane exits. Each line is
+agent working in a checkout of this repo (the ones `spawn` started; the user's
+own sessions are unnamed and they watch those themselves; workers in other
+repos belong to those repos' orchestrators), and prints one line when an agent
+becomes blocked (an approval or question UI), done (finished a turn), or its
+pane exits. Each line is
 `<status> <pane> <cwd basename> <terminal title>`.
 
 Agents named after start are picked up live: Herdr emits pane_updated when an
@@ -24,6 +26,21 @@ NOTIFY = {"blocked", "done"}
 
 if os.environ.get("HERDR_ENV") != "1":
     sys.exit("watch: not running inside Herdr")
+
+
+def common_dir(cwd):
+    if not cwd:  # git -C "" would mean the current directory
+        return None
+    try:
+        return subprocess.check_output(
+            ["git", "-C", cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            stderr=subprocess.DEVNULL, text=True).strip()
+    except (subprocess.CalledProcessError, FileNotFoundError, NotADirectoryError):
+        return None
+
+
+COMMON = common_dir(os.getcwd()) or sys.exit("watch: run from inside the project's git checkout")
+SELF = os.environ.get("HERDR_PANE_ID")
 
 selector = selectors.DefaultSelector()
 watched = {}  # pane_id -> agent dict
@@ -45,6 +62,10 @@ def agent(pane_id):
         return None
 
 
+def ours(a):
+    return bool(a and a.get("name") and a["pane_id"] != SELF and common_dir(a.get("cwd", "")) == COMMON)
+
+
 def watch(a):
     watched[a["pane_id"]] = a
     subscribe([{"type": "pane.agent_status_changed", "pane_id": a["pane_id"]}])
@@ -57,7 +78,7 @@ def report(status, pane_id):
 
 
 for a in json.loads(subprocess.check_output(["herdr", "agent", "list"]))["result"]["agents"]:
-    if a.get("name"):
+    if ours(a):
         watch(a)
 subscribe([{"type": "pane.updated"}, {"type": "pane.exited"}])
 
@@ -82,5 +103,5 @@ while True:
                 report("exited", data["pane_id"])
             elif event == "pane_updated":
                 pane_id = data.get("pane", {}).get("pane_id")
-                if pane_id and pane_id not in watched and (a := agent(pane_id)) and a.get("name"):
+                if pane_id and pane_id not in watched and ours(a := agent(pane_id)):
                     watch(a)

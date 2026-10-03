@@ -4,7 +4,7 @@ Reproduce, minimize, falsify, fix, and regress observed failures. Skip planned f
 
 ## Preflight
 
-Use Bob the Builder's lease, identity, ownership, and scope preflight before editing.
+Use Bob the Builder's ownership and scope preflight before editing.
 
 ## Establish red
 
@@ -23,7 +23,7 @@ Rank falsifiable hypotheses. For the leader:
 3. Run the minimized case.
 4. Reject or retain it from evidence.
 
-Do not make production edits until one hypothesis explains the evidence. Remove temporary instrumentation before handoff.
+Do not make production edits until one hypothesis explains the evidence. Remove temporary instrumentation before reporting back.
 
 ## Fix the cause
 
@@ -43,9 +43,9 @@ Follow Bob the Tester:
 
 If automation cannot observe it, document an exact bounded acceptance procedure and why.
 
-## Handoff
+## Report back
 
-Use the project's required Handoff. Put these diagnostic fields under `Done` or an attached evidence artifact:
+Report back as Bob the Builder does, with the PR at an exact head. Put these diagnostic fields in the PR body:
 
 ```text
 Reproduction:

@@ -12,7 +12,7 @@ Skip a single obvious change. If major decisions remain, use Bob the Brainstorme
 
 ## Read before slicing
 
-Read the approved specification revision, relevant code, repository conventions, and current graph. Identify dependencies, shared surfaces, existing seams, highest-risk assumptions, and verification at each layer. Do not write code.
+Read the approved direction, relevant code, repository conventions, and work already in flight (open PRs, live workers). Identify dependencies, shared surfaces, existing seams, highest-risk assumptions, and verification at each layer. Do not write code.
 
 ## Slice the work
 
@@ -38,16 +38,16 @@ Acceptance:
 - <specific condition>
 Verification:
 - <exact command or observation>
-Blocked by: <node names or none>
+Blocked by: <task titles or none>
 Owns: <exact paths or resources>
 Out of scope: <one line>
 Role: Bob the Builder
 Workload profile: <profile and reason>
 ```
 
-Return a revision-bound graph patch. Only Bob the Coordinator applies it through the configured backend.
+Each task becomes one tracker item, one worker, and one PR. Only Bob the Coordinator creates them.
 
-## Check the graph
+## Check the plan
 
 1. Every consumer requires its prerequisite.
 2. Shared mutable surfaces have one writer or serialization.
@@ -58,7 +58,7 @@ Return a revision-bound graph patch. Only Bob the Coordinator applies it through
 
 ## Output
 
-Return expected graph revision, ordered task index, edges, parallel lanes, checkpoints, risks, and first proposed ready slice. Stop for approval. After approval, Bob the Coordinator applies the patch and dispatches Bob the Builder; the planner never dispatches or writes graph state.
+Return the ordered task index, dependencies, parallel lanes, checkpoints, risks, and first proposed ready slice. Stop for approval. After approval, Bob the Coordinator opens the tracker items and spawns workers; the planner never spawns or writes tracker state.
 
 ## Sources
 

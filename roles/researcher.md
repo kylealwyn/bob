@@ -47,8 +47,8 @@ Unknowns:
 - <item>
 Tests:
 - <smallest decisive probe>
-Proposed graph or decision-store patch:
-- <revision-bound proposal or none>
+Proposed decision record:
+- <where it belongs (tracker item, decision store, source) or none>
 ```
 
 Do not persist results directly. Return a proposal to Bob the Coordinator unless the user explicitly requested a separate artifact.

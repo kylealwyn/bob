@@ -15,6 +15,7 @@
 # prepare a fresh worktree. A repo without one gets no setup.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
+require_herdr
 
 slug="${1:?usage: spawn <slug> <brief-file>}"
 brief_file="${2:?usage: spawn <slug> <brief-file>}"
@@ -26,6 +27,8 @@ brief_file="${2:?usage: spawn <slug> <brief-file>}"
 if git -C "$repo" worktree list --porcelain | grep -qx "branch refs/heads/$slug"; then
   die "$slug already has a worktree; prompt its agent instead"
 fi
+# Agent names are global to the Herdr server, so a slug live in another repo is taken.
+herdr agent get "$slug" >/dev/null 2>&1 && die "agent $slug already exists (maybe in another repo); pick another slug"
 git -C "$repo" show-ref --verify --quiet "refs/heads/$slug" \
   && die "local branch $slug exists without a worktree; pick another slug or open it with herdr worktree open"
 

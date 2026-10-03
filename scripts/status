@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# status — one line per live agent: status, checkout (cwd basename, which is
+# the worktree slug), agent name or pane id, and the topic Claude writes into
+# its terminal title. Agents that need Kyle (blocked) sort first, then finished
+# ones (done), then the rest.
+set -euo pipefail
+
+[[ "${HERDR_ENV:-}" == 1 ]] || { echo "status: not running inside Herdr" >&2; exit 1; }
+
+herdr agent list | jq -r '
+  {blocked: 0, done: 1, unknown: 2, idle: 3, working: 4} as $rank
+  | .result.agents
+  | sort_by($rank[.agent_status] // 9)
+  | .[]
+  | [.agent_status, (.cwd | split("/") | last), (.name // .pane_id), .terminal_title_stripped]
+  | @tsv' | column -t -s $'\t'

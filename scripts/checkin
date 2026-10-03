@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# checkin — one line per spawned worker with the signals that show drift:
+# minutes into its current turn, commits ahead of origin/main, uncommitted
+# files, stray tmp files, and its open PR. Read the flagged ones' panes.
+#
+#   checkin            all named agents
+#   checkin <slug>...  only these
+#
+# Flags: TURN>30m, DIRTY>8 files, TMP files present, NOPR with commits ahead.
+set -euo pipefail
+
+repo="${KIN_REPO:-$HOME/dev/kin}"
+[[ "${HERDR_ENV:-}" == 1 ]] || { echo "checkin: not running inside Herdr" >&2; exit 1; }
+
+agents=$(herdr agent list | jq -c '.result.agents[] | select(.name) | {name, cwd, agent_status}')
+if [[ $# -gt 0 ]]; then
+  want=" $* "
+fi
+
+printf '%-24s %-8s %6s %5s %5s %4s  %s\n' agent status turn ahead dirty tmp pr/flags
+while IFS= read -r a; do
+  name=$(jq -r .name <<<"$a"); cwd=$(jq -r .cwd <<<"$a"); status=$(jq -r .agent_status <<<"$a")
+  [[ -n "${want:-}" && "$want" != *" $name "* ]] && continue
+  [[ -d "$cwd" ]] || continue
+  # Minutes since the pane last changed state, from the agent's "done HH:MM" line or now.
+  # A working pane shows the live turn's elapsed time as "(37m 53s ·" or "(53s ·".
+  turn="-"
+  if [[ "$status" == working ]]; then
+    el=$(herdr agent read "$name" --source visible 2>/dev/null | grep -oE '\(([0-9]+h )?([0-9]+m )?[0-9]+s ·' | tail -1 || true)
+    h=$(grep -oE '[0-9]+h' <<<"$el" | tr -d h || true); m=$(grep -oE '[0-9]+m' <<<"$el" | tr -d m || true)
+    [[ -n "$el" ]] && turn=$(( ${h:-0} * 60 + ${m:-0} ))m
+  fi
+  branch=$(git -C "$cwd" branch --show-current 2>/dev/null || echo "?")
+  ahead=$(git -C "$cwd" rev-list --count origin/main..HEAD 2>/dev/null || echo "?")
+  dirty=$(git -C "$cwd" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+  tmp=$(git -C "$cwd" status --porcelain 2>/dev/null | grep -ciE '(^|/)tmp[-_.]|\.tmp\.' || true)
+  pr=""
+  merged=""
+  if [[ -n "$branch" && "$branch" != "?" ]]; then
+    pr=$(gh pr list --repo kin-health/kin --head "$branch" --state open --json number --jq '.[0].number // empty' 2>/dev/null || true)
+    [[ -z "$pr" ]] && merged=$(gh pr list --repo kin-health/kin --head "$branch" --state merged --json number --jq '.[0].number // empty' 2>/dev/null || true)
+  fi
+  flags=""
+  [[ -n "$merged" ]] && pr="$merged merged"
+  [[ "$turn" != "-" && "${turn%m}" -gt 30 ]] && flags+=" TURN>30m"
+  (( dirty > 8 )) && flags+=" DIRTY"
+  (( tmp > 0 )) && flags+=" TMP"
+  [[ -z "$pr" && "$ahead" != "?" && "$ahead" -gt 0 ]] && flags+=" NOPR"
+  printf '%-24s %-8s %6s %5s %5s %4s  %s%s\n' "$name" "$status" "$turn" "$ahead" "$dirty" "$tmp" "${pr:+#$pr}" "$flags"
+done <<<"$agents"

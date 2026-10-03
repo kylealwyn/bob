@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# close <slug> [<slug>...]
+#
+# Closes a finished workspace: stops its agent, removes the Herdr workspace and
+# worktree, and deletes the branch locally and on origin. Refuses a worktree
+# with uncommitted changes or a branch whose PR is still open, so only merged
+# or abandoned work closes. Prints one line per slug.
+set -euo pipefail
+
+repo="${KIN_REPO:-$HOME/dev/kin}"
+[[ "${HERDR_ENV:-}" == 1 ]] || { echo "close: not running inside Herdr" >&2; exit 1; }
+[[ $# -ge 1 ]] || { echo "usage: close <slug> [<slug>...]" >&2; exit 1; }
+
+for slug in "$@"; do
+  path=$(git -C "$repo" worktree list --porcelain | awk -v want="$slug" '
+    /^worktree / {p = substr($0, 10)} /^branch / && $0 == "branch refs/heads/" want {print p; exit}')
+  if [[ -z "$path" ]]; then
+    path=$(herdr worktree list --cwd "$repo" | jq -r --arg s "$slug" '.result.worktrees[] | select(.path | endswith("/" + $s)) | .path')
+  fi
+  [[ -n "$path" && -d "$path" ]] || { echo "$slug: no worktree"; continue; }
+
+  branch=$(git -C "$path" branch --show-current)
+  if [[ -n "$(git -C "$path" status --porcelain)" ]]; then
+    echo "$slug: uncommitted changes in $path, not closing"; continue
+  fi
+  # A detached worktree has no branch; an empty --head would match every PR.
+  pr=""
+  if [[ -n "$branch" ]]; then
+    pr=$(gh pr list --repo "$(git -C "$repo" remote get-url origin | sed -E 's#.*[:/]([^/]+/[^/]+)\.git$#\1#')" \
+          --head "$branch" --state open --json number --jq '.[0].number // empty' 2>/dev/null || true)
+  fi
+  if [[ -n "$pr" ]]; then
+    echo "$slug: PR #$pr is still open, not closing"; continue
+  fi
+
+  workspace=$(herdr worktree list --cwd "$repo" | jq -r --arg p "$path" '.result.worktrees[] | select(.path == $p) | .open_workspace_id // empty')
+  if [[ -n "$workspace" ]]; then
+    herdr agent send-keys "$slug" ctrl+c ctrl+c >/dev/null 2>&1 || true
+    herdr worktree remove --workspace "$workspace" --force >/dev/null
+  else
+    git -C "$repo" worktree remove --force "$path"
+  fi
+  if [[ -n "$branch" ]]; then
+    git -C "$repo" branch -D "$branch" >/dev/null 2>&1 || true
+    git -C "$repo" push origin --delete "$branch" >/dev/null 2>&1 || true
+  fi
+  echo "$slug: closed (${branch:-detached})"
+done

@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+"""watch — stream agent state changes that need the orchestrator.
+
+Subscribes over the Herdr socket to pane.agent_status_changed for every named
+agent (the ones `spawn` started; Kyle's own sessions are unnamed and he watches
+those himself), and prints one line when an agent becomes blocked (an approval
+or question UI), done (finished a turn), or its pane exits. Each line is
+`<status> <pane> <cwd basename> <terminal title>`.
+
+Agents named after start are picked up live: Herdr emits pane_updated when an
+agent is named, and that payload has no name, so each unknown pane is checked
+with `herdr agent get` and gets its own subscription when it has one.
+
+Run it as a Claude Code Monitor; each printed line arrives as an event.
+"""
+import json
+import os
+import selectors
+import socket
+import subprocess
+import sys
+
+NOTIFY = {"blocked", "done"}
+
+if os.environ.get("HERDR_ENV") != "1":
+    sys.exit("watch: not running inside Herdr")
+
+selector = selectors.DefaultSelector()
+watched = {}  # pane_id -> agent dict
+
+
+def subscribe(subscriptions):
+    sock = socket.socket(socket.AF_UNIX)
+    sock.connect(os.environ["HERDR_SOCKET_PATH"])
+    sock.sendall((json.dumps({"id": "watch", "method": "events.subscribe",
+                              "params": {"subscriptions": subscriptions}}) + "\n").encode())
+    selector.register(sock, selectors.EVENT_READ, data={"buf": b""})
+
+
+def agent(pane_id):
+    try:
+        out = subprocess.check_output(["herdr", "agent", "get", pane_id], stderr=subprocess.DEVNULL)
+        return json.loads(out)["result"]["agent"]
+    except (subprocess.CalledProcessError, KeyError, json.JSONDecodeError):
+        return None
+
+
+def watch(a):
+    watched[a["pane_id"]] = a
+    subscribe([{"type": "pane.agent_status_changed", "pane_id": a["pane_id"]}])
+
+
+def report(status, pane_id):
+    a = agent(pane_id) or watched.get(pane_id, {})
+    print(f"{status} {pane_id} {os.path.basename(a.get('cwd', '?'))} {a.get('terminal_title_stripped', '')}",
+          flush=True)
+
+
+for a in json.loads(subprocess.check_output(["herdr", "agent", "list"]))["result"]["agents"]:
+    if a.get("name"):
+        watch(a)
+subscribe([{"type": "pane.updated"}, {"type": "pane.exited"}])
+
+while True:
+    for key, _ in selector.select():
+        chunk = key.fileobj.recv(65536)
+        if not chunk:
+            sys.exit("watch: Herdr closed a subscription")
+        key.data["buf"] += chunk
+        while b"\n" in key.data["buf"]:
+            line, key.data["buf"] = key.data["buf"].split(b"\n", 1)
+            msg = json.loads(line)
+            if "error" in msg:
+                sys.exit(f"watch: {msg['error']}")
+            # Events arrive as {"event": ..., "data": {...}}. Status events use the
+            # subscription name (pane.agent_status_changed); general ones use
+            # underscores (pane_updated, pane_exited).
+            event, data = msg.get("event"), msg.get("data", {})
+            if event == "pane.agent_status_changed" and data.get("agent_status") in NOTIFY:
+                report(data["agent_status"], data["pane_id"])
+            elif event == "pane_exited" and data.get("pane_id") in watched:
+                report("exited", data["pane_id"])
+            elif event == "pane_updated":
+                pane_id = data.get("pane", {}).get("pane_id")
+                if pane_id and pane_id not in watched and (a := agent(pane_id)) and a.get("name"):
+                    watch(a)

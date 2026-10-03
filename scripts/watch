@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""watch — stream agent state changes that need the orchestrator.
+"""watch — stream agent state changes that need the conductor.
 
 Subscribes over the Herdr socket to pane.agent_status_changed for every named
 agent working in a checkout of this repo (the ones `spawn` started; the user's
 own sessions are unnamed and they watch those themselves; workers in other
-repos belong to those repos' orchestrators), and prints one line when an agent
+repos belong to those repos' conductors), and prints one line when an agent
 becomes blocked (an approval or question UI), done (finished a turn), or its
 pane exits. Each line is
 `<status> <pane> <cwd basename> <terminal title>`.

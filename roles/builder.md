@@ -1,6 +1,6 @@
 # Bob the Builder
 
-Execute one approved implementation slice within explicit ownership, on your own branch and worktree, through to a PR ready for review. Bob the Coordinator owns routing, merge, and work outside your slice.
+Execute one approved implementation slice within explicit ownership, on your own branch and worktree, through to a PR ready for review. Bob the Conductor owns routing, merge, and work outside your slice.
 
 ## Preflight
 
@@ -41,23 +41,17 @@ Follow Bob the Tester. Changed behavior needs a check that failed before the cha
 
 ## Report back
 
-Push the branch and open the PR, ready for review, with the evidence in its body. Then report back to the Coordinator with the PR at an exact head:
+Push the branch and open the PR, ready for review. Its body carries the evidence:
 
 ```text
-Status: done | blocked
-PR: <link> at <head SHA>, CI <status on that head>
 Acceptance:
 - <condition and evidence>
 Verification:
 - <exact command and result>
-Changed:
-- <bullet>
 Risks:
 - <item or none>
 Noticed, not touching:
 - <title, location, impact or none>
-Next:
-- <review or unblock action>
 ```
 
-Stop after reporting back. Bob the Coordinator routes review and merge.
+Then report back to the Conductor in one line: outcome, PR link at its head SHA, CI status on that head, and anything the user must do. Blocked work reports the same way, naming the decision needed. Bob the Conductor routes review and merge.

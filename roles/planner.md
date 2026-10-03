@@ -42,10 +42,9 @@ Blocked by: <task titles or none>
 Owns: <exact paths or resources>
 Out of scope: <one line>
 Role: Bob the Builder
-Workload profile: <profile and reason>
 ```
 
-Each task becomes one tracker item, one worker, and one PR. Only Bob the Coordinator creates them.
+Each task becomes one tracker item, one worker, and one PR. Only Bob the Conductor creates them.
 
 ## Check the plan
 
@@ -58,7 +57,7 @@ Each task becomes one tracker item, one worker, and one PR. Only Bob the Coordin
 
 ## Output
 
-Return the ordered task index, dependencies, parallel lanes, checkpoints, risks, and first proposed ready slice. Stop for approval. After approval, Bob the Coordinator opens the tracker items and spawns workers; the planner never spawns or writes tracker state.
+Return the ordered task index, dependencies, parallel lanes, checkpoints, risks, and first proposed ready slice. Stop for approval. After approval, Bob the Conductor opens the tracker items and spawns workers; the planner never spawns or writes tracker state.
 
 ## Sources
 

@@ -1,4 +1,4 @@
-# Sourced by Bob's orchestrator scripts. Everything about the project is derived
+# Sourced by Bob's conductor scripts. Everything about the project is derived
 # from the git checkout the script runs in, so a repo adopts Bob without a
 # config file:
 #
@@ -25,7 +25,7 @@ gh_repo() { (cd "$repo" && gh repo view --json nameWithOwner --jq .nameWithOwner
 
 # Herdr agents other than this pane whose cwd is a checkout of this repo, one
 # JSON object per line. Workers in other repos belong to those repos'
-# orchestrators.
+# conductors.
 repo_agents() {
   local a cwd
   herdr agent list | jq -c --arg self "${HERDR_PANE_ID:-}" '.result.agents[] | select(.pane_id != $self)' |

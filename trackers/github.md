@@ -2,7 +2,7 @@
 
 The default tracker. Use it unless the repo's AGENTS.md names another one. Work lives as issues on the repo PRs open against (`gh repo view`).
 
-## Coordinator
+## Conductor
 
 - Before spawning, find an open issue that already covers the item (`gh issue list --search`); otherwise open one: title in the product's nouns, body with the goal and the user's words. Put its number and URL in the brief.
 - After merge, confirm the issue closed (`Closes #N` closes it). If work remains, comment what landed and what's left, and leave it open.

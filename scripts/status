@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # status — one line per live agent in this repo's checkouts, other than the
-# orchestrator itself: status, checkout (cwd basename, which is the worktree
+# conductor itself: status, checkout (cwd basename, which is the worktree
 # slug), agent name or pane id, and the topic the agent writes into its
 # terminal title. Agents that need the user (blocked) sort first, then
 # finished ones (done), then the rest.

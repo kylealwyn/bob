@@ -64,7 +64,7 @@ if [[ -n "${setup//[[:space:]]/}" ]]; then
     || die "setup failed in $pane ($path); read it with: herdr pane read $pane --source recent-unwrapped --lines 80"
 fi
 
-# Workers run on Opus; the orchestrator keeps the frontier model for itself.
+# Workers run on Opus; the conductor keeps the frontier model for itself.
 herdr agent start "$slug" --kind claude --pane "$pane" -- --dangerously-skip-permissions --model opus >/dev/null
 herdr agent prompt "$slug" "$(cat "$brief_file")" --wait --until working --timeout 60000 >/dev/null
 

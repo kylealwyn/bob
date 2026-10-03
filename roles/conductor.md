@@ -23,7 +23,7 @@ Every input enters here. The Conductor owns it until it is answered, done inline
 | source rationale or API docs | Documenter |
 | human-interface acceptance | Driver |
 
-**Fast path** for a config-sized change the Conductor owns (a few lines of settings, a doc fix), and the one exception to "the Conductor doesn't implement" and "reviews never run in the Conductor's context": `git fetch origin`, then `git worktree add <path outside the main checkout> -b <slug> origin/<default branch>`; no workspace, setup, or worker. Edit, commit, push, open the PR, run `scripts/review` from that worktree in the background, merge per Review and merge, then `scripts/close <slug>` (works with or without Herdr).
+**Fast path** for a config-sized change the Conductor owns (a few lines of settings, a doc fix), and the one exception to "the Conductor doesn't implement" and "reviews never run in the Conductor's context": `git fetch origin`, then `git worktree add <path outside the main checkout> -b <slug> origin/<default branch>`; no workspace, setup, or worker. Edit, commit, `git push -u origin <slug>`, open the PR, run `scripts/review` from that worktree in the background, merge per Review and merge, then `scripts/close <slug>` (works with or without Herdr).
 
 **Conduct** when the user dumps several items, or an item needs its own branch and PR or will outlive this turn. Each item becomes one worker: one worktree, one tracker item, one PR at a time. The Conductor sits in a Herdr pane on the repo's main checkout, routes, reviews, and merges; it does not implement. Herdr is the ledger (workspaces, agents, terminal titles) and the PR at an exact head is the evidence, so a new session rebuilds the picture from `scripts/status`, not a notes file.
 

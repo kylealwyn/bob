@@ -53,9 +53,10 @@ for slug in "$@"; do
 
   # Stop the agent, then judge what it left: a commit or file written on the way
   # out must not be deleted.
-  # Outside Herdr there is no workspace (the Conductor's fast path).
+  # Ask Herdr whenever it's installed, even from a plain terminal, so a live
+  # worker is always stopped first. Without Herdr there are no workspaces.
   workspace=""
-  if [[ "${HERDR_ENV:-}" == 1 ]]; then
+  if command -v herdr >/dev/null; then
     workspace=$(herdr worktree list --cwd "$repo" | jq -r --arg p "$path" '.result.worktrees[] | select(.path == $p) | .open_workspace_id // empty')
   fi
   [[ -z "$workspace" ]] || herdr workspace close "$workspace" >/dev/null

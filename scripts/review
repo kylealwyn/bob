@@ -15,7 +15,8 @@
 #
 # Run it in the worker's worktree with a clean tree and don't commit while it
 # runs: it reviews HEAD, and fails if HEAD moved before both reports were in.
-# Exits non-zero if either review fails to run.
+# Exits non-zero if either review fails to run. Prints, and comments on the
+# open PR, one line: `Bob review at <sha>: Codex <P1 x1, P2 x2> · Fable <verdict>`.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 roles="$(cd "$(dirname "$0")/.." && pwd)/roles"
@@ -62,6 +63,13 @@ wait "$fable_pid" || { echo "fable review failed; see $out/fable.log" >&2; statu
 [[ "$(git rev-parse HEAD)" == "$head" ]] \
   || { echo "HEAD moved during review; the reports may not match $head. Rerun." >&2; status=1; }
 
-printf 'head %s\n' "$head"
 for f in codex fable; do [[ -s "$out/$f.md" ]] && printf '%s  %s\n' "$f" "$out/$f.md"; done
-exit "$status"
+(( status == 0 )) || exit "$status"
+
+# One summary line, also posted on the open PR: the Conductor reads verdicts
+# there at the exact head, and the record outlives the worktree.
+findings=$(grep -oE '^- \[P[0-9]\]' "$out/codex.md" | grep -oE 'P[0-9]' | sort | uniq -c | awk '{printf "%s%s x%s", sep, $2, $1; sep=", "}' || true)
+verdict=$(grep -m1 -oE '^Verdict: [a-z_]+' "$out/fable.md" | cut -d' ' -f2 || true)
+summary="Bob review at $head: Codex ${findings:-no findings} · Fable ${verdict:-no verdict line, see fable.md}"
+printf '%s\n' "$summary"
+[[ -z "$pr" ]] || gh pr comment "$branch" --repo "$(gh_repo)" --body "$summary" >/dev/null

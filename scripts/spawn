@@ -54,16 +54,17 @@ if [[ -n "${setup//[[:space:]]/}" ]]; then
   printf '%s\n' "$setup" >"$script"
   # The command text contains "setup-exit=%s", so only the printed status matches.
   q=$(printf %q "$script")
-  herdr pane run "$pane" "bash -e $q; printf 'setup-exit=%s\n' \$?; rm -f $q" >/dev/null
-  herdr pane wait-output "$pane" --regex 'setup-exit=[0-9]+' --timeout 600000 >/dev/null
-  if ! herdr pane read "$pane" --source recent-unwrapped --lines 40 | grep -q 'setup-exit=0'; then
+  herdr pane run "$pane" "bash -e $q; printf 'setup-exit=%s\n' \$?" >/dev/null
+  if ! herdr pane wait-output "$pane" --regex 'setup-exit=[0-9]+' --timeout 600000 >/dev/null ||
+     ! herdr pane read "$pane" --source recent-unwrapped --lines 40 | grep -q 'setup-exit=0'; then
     # Undo only what spawn created; a picked-up origin/<slug> stays on origin.
-    log=$(herdr pane read "$pane" --source recent-unwrapped --lines 80)
+    herdr pane read "$pane" --source recent-unwrapped --lines 80 >&2
     herdr worktree remove --workspace "$workspace" --force >/dev/null
-    git -C "$repo" branch -D "$slug" >/dev/null
-    printf '%s\n' "$log" >&2
-    die "setup failed (output above); worktree removed, fix the setup and spawn again"
+    git -C "$repo" branch -D "$slug" >/dev/null 2>&1 || true
+    rm -f "$script"
+    die "setup failed or timed out (output above); worktree removed, fix the setup and spawn again"
   fi
+  rm -f "$script"
 fi
 
 # Workers run on Opus; the conductor keeps the frontier model for itself.

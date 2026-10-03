@@ -57,7 +57,7 @@ Spawn independent items in parallel. Report one line per item: slug and what the
 - **Done means**: usually a PR ready for review with verification evidence; for design questions, a verdict reported back. Verify the built, deployed artifact, not just source: some bugs exist only in the production bundle. Before merge that means the PR's own preview (the lane AGENTS.md names), never a shared environment the default branch deploys to, since every merge overwrites it.
 - **Scope**: what not to touch. Say when a surface is new and unused, or the worker treats it as live traffic and stalls on ceremony.
 - **Dependencies**: wait on another PR only if this branch can't compile without it; otherwise start from the default branch and rebase later.
-- **Tracker**: the item and the worker's duties from the tracker file.
+- **Tracker**: the item and the worker's duties from the tracker file, including filing follow-ups.
 - **Report back**: "When done, or blocked on a decision only the user can make, SendMessage `<this session's name>` one line: outcome, PR link at its head SHA, and anything the user must do."
 
 `spawn` refuses a slug that already has a worktree, local branch, or live agent (agent names are global across repos). It fetches with prune, creates the worktree with `--no-focus`, runs the `[setup].script` of the main checkout's single `.codex/environments/*.toml` in it (on failure it prints the output and removes the worktree it made, so fix setup and spawn again), starts `claude --dangerously-skip-permissions --model opus` as agent `<slug>`, and submits the brief. Workers run on Opus; the Conductor keeps the frontier model.
@@ -91,13 +91,14 @@ Every 10 minutes the groom walks all open work and moves it along; `watch` handl
 3. **Idle or done without a report-back**: read the tail and prompt the next concrete step: open the PR, fix the red check, run `scripts/review`, address its findings, rebase on the default branch.
 4. **Ready PRs**: both reviews clean and CI green on the head → merge per Review and merge. Merged and verified → update the tracker and close.
 5. **Blocked**: relay to the user once; don't repeat an unchanged question.
-6. Report only what changed or needs the user. A groom with nothing to move says nothing.
+6. **Follow-ups**: list open follow-ups in the tracker (see the tracker file) and anything a worker mentioned but didn't file (file it). Give each a disposition: fold it into the worker already on that surface, spawn it, ask the user when it's a product call, or close it with the reason. Leave none untriaged.
+7. Report only what changed or needs the user. A groom with nothing to move says nothing.
 
 ## Review and merge
 
-Reviews run in the worker's session, never in the Conductor's context. Prompt the worker to run `scripts/review` (absolute path). It reviews HEAD with `codex review` and `claude -p --model claude-fable-5-1` in parallel and writes both reports under the worktree's git dir; `fable.md` opens with the model ID Claude reports. The worker fixes every valid finding, pushes, waits for CI on that head, and reports each verdict, the fixes, the head SHA, and CI status.
+Reviews run in the worker's session, never in the Conductor's context. Prompt the worker to run `scripts/review` (absolute path). It reviews HEAD with `codex review` and `claude -p --model claude-fable-5-1` in parallel, writes both reports under the worktree's git dir (`fable.md` opens with the model ID Claude reports), and comments one line on the PR: `Bob review at <sha>: Codex <findings> · Fable <verdict>`. The worker fixes every valid finding, pushes, and reruns `review` on the new head until it is clean, or reports why a remaining finding is invalid for you to judge.
 
-Merge only with the user's merge authority for this repo, given in the session or in AGENTS.md. With it, squash-merge when both reviews are clean and CI is green on that exact head: `gh pr merge <n> --squash --match-head-commit <sha>`. Without it, report the PR ready with its verdicts. Hold a merge when a design question is open, the PR needs a production write the user hasn't seen, or the worker flagged a trade-off for the user.
+Read the verdicts yourself from that PR comment, not from the worker's relay. Clean means the comment names the PR's current head, Codex has no findings, and Fable says `pass`. Merge only with the user's merge authority for this repo, given in the session or in AGENTS.md. With it, squash-merge when the reviews are clean and CI is green on that exact head: `gh pr merge <n> --squash --match-head-commit <sha>`. Without it, report the PR ready with its verdicts. Hold a merge when a design question is open, the PR needs a production write the user hasn't seen, or the worker flagged a trade-off for the user.
 
 After merge, update the tracker per the tracker file. After several merges in a row, watch the default branch's next CI run: each PR was green against an older base, and only the default branch catches conflicts between them (one PR removed an import another used; three releases failed). When it's red, one worker owns the fix.
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # close [--abandon] <slug>...
 #
-# Closes finished work in this repo: closes the Herdr workspace (which stops its
-# agent), removes the worktree, and deletes the branch locally and on origin.
+# Closes finished work in this repo: closes the Herdr workspace if there is one
+# (which stops its agent), removes the worktree, and deletes the branch locally and on origin.
 # Prints one line per slug and exits non-zero if any slug was refused.
 #
 # Refuses, per slug:
@@ -14,7 +14,6 @@
 #     nothing it writes on the way out is lost (git worktree remove, unforced).
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
-require_herdr
 
 abandon=false
 [[ "${1:-}" == --abandon ]] && { abandon=true; shift; }
@@ -54,11 +53,16 @@ for slug in "$@"; do
 
   # Stop the agent, then judge what it left: a commit or file written on the way
   # out must not be deleted.
-  workspace=$(herdr worktree list --cwd "$repo" | jq -r --arg p "$path" '.result.worktrees[] | select(.path == $p) | .open_workspace_id // empty')
+  # Outside Herdr there is no workspace (the Conductor's fast path).
+  workspace=""
+  if [[ "${HERDR_ENV:-}" == 1 ]]; then
+    workspace=$(herdr worktree list --cwd "$repo" | jq -r --arg p "$path" '.result.worktrees[] | select(.path == $p) | .open_workspace_id // empty')
+  fi
   [[ -z "$workspace" ]] || herdr workspace close "$workspace" >/dev/null
-  merged || continue
+  stopped=${workspace:+agent stopped and workspace closed; }
+  merged || { [[ -z "$stopped" ]] || echo "$slug: ${stopped%; }, worktree kept"; continue; }
   if ! err=$(git -C "$repo" worktree remove "$path" 2>&1); then
-    refuse "${err#fatal: }"; continue
+    refuse "$stopped${err#fatal: }"; continue
   fi
   git -C "$repo" branch -D "$slug" >/dev/null
   # The fetch above pruned branches GitHub already deleted on merge. The lease

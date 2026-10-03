@@ -48,7 +48,7 @@ Unknowns:
 Tests:
 - <smallest decisive probe>
 Proposed decision record:
-- <where it belongs (tracker item, decision store, source) or none>
+- <where it belongs (tracker item or source) or none>
 ```
 
 Do not persist results directly. Return a proposal to Bob the Conductor unless the user explicitly requested a separate artifact.

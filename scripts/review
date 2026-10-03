@@ -30,11 +30,13 @@ branch=$(git branch --show-current)
 out="$(git rev-parse --path-format=absolute --git-dir)/bob-review/$head"
 mkdir -p "$out"
 
-pr=""
-if [[ -n "$branch" ]] && ! pr=$(gh pr view "$branch" --repo "$(gh_repo)" --json number,title,body \
-    --jq '"#\(.number) \(.title)\n\n\(.body)"' 2>"$out/gh.log"); then
-  grep -q 'no pull requests found' "$out/gh.log" || die "gh pr view failed: $(cat "$out/gh.log")"
-  pr=""
+# Only an open PR: a reused branch name can also match an old merged one.
+gh=$(gh_repo)
+pr_number=""; pr=""
+if [[ -n "$branch" ]]; then
+  pr_number=$(gh pr list --repo "$gh" --head "$branch" --state open --json number --jq '.[0].number // empty')
+  [[ -z "$pr_number" ]] || pr=$(gh pr view "$pr_number" --repo "$gh" --json number,title,body \
+    --jq '"#\(.number) \(.title)\n\n\(.body)"')
 fi
 
 {
@@ -79,4 +81,4 @@ verdict=$(grep -m1 -oE '^Verdict: [a-z_]+' "$out/fable.md" | cut -d' ' -f2 || tr
 [[ -n "$findings" ]] || findings="no tagged findings (\"$(head -c 160 "$out/codex.md" | head -1)\")"
 summary="Bob review at $head: Codex $findings · Fable ${verdict:-no verdict line, see fable.md}"
 printf '%s\n' "$summary"
-[[ -z "$pr" ]] || gh pr comment "$branch" --repo "$(gh_repo)" --body "$summary" >/dev/null
+[[ -z "$pr_number" ]] || gh pr comment "$pr_number" --repo "$gh" --body "$summary" >/dev/null

@@ -82,5 +82,5 @@ Put a durable lesson at the seam that owns it, once:
 - conducting → `roles/conductor.md` or `scripts/`;
 - tracker behavior → `trackers/`;
 - project configuration and safety → the repo's AGENTS.md;
-- historical choices → the tracker or decision store;
+- historical choices → the tracker;
 - implementation truth → source, types, tests, comments.

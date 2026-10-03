@@ -56,6 +56,7 @@ for slug in "$@"; do
   # Ask Herdr whenever it's installed, even from a plain terminal, so a live
   # worker is always stopped first. Without Herdr there are no workspaces.
   workspace=""
+  [[ "${HERDR_ENV:-}" != 1 ]] || command -v herdr >/dev/null || die "inside Herdr but the herdr CLI isn't on PATH"
   if command -v herdr >/dev/null; then
     workspace=$(herdr worktree list --cwd "$repo" | jq -r --arg p "$path" '.result.worktrees[] | select(.path == $p) | .open_workspace_id // empty')
   fi

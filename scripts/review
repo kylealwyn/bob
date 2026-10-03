@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# review — two fresh-context frontier reviews of the current branch at its
-# exact HEAD, against the default branch:
+# review [--since <sha>] — two fresh-context frontier reviews of the current
+# branch at its exact HEAD, against the default branch:
 #
 #   codex.md   `codex review --base <base>` on Codex's default model
 #   fable.md   `claude -p --model claude-fable-5-1` with roles/reviewer.md as
@@ -13,12 +13,22 @@
 # Fable gets read-only built-in tools and no MCP servers, since its input (PR
 # body, commits, diff) is untrusted. Codex runs under its own configured sandbox.
 #
+# Rounds: the first two review the whole branch. After that, review only the
+# delta with --since <last reviewed head>, and stop after two such confirmation
+# rounds: fix real bugs, batch nits into one push, and hand the PR on. Full
+# re-reviews of an unchanged design keep finding new nits forever (eleven
+# rounds on Bob v2's own PR, 2026-10-03).
+#
 # Run it in the worker's worktree with a clean tree and don't commit while it
 # runs: it reviews HEAD, and fails if HEAD moved before both reports were in.
 # Exits non-zero if either review fails to run. Prints, and comments on the
 # open PR, one line: `Bob review at <sha>: Codex <P1 x1, P2 x2> · Fable <verdict>`.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
+since=""
+if [[ "${1:-}" == --since ]]; then
+  since=$(git rev-parse --verify "${2:?usage: review [--since <sha>]}^{commit}") || die "unknown commit: $2"
+fi
 roles="$(cd "$(dirname "$0")/.." && pwd)/roles"
 worktree=$(git rev-parse --show-toplevel)
 
@@ -27,6 +37,12 @@ git fetch origin --quiet
 head=$(git rev-parse HEAD)
 branch=$(git branch --show-current)
 [[ -n "$(git rev-list "$base..$head")" ]] || die "HEAD has no commits beyond $base"
+from=$base
+if [[ -n "$since" ]]; then
+  git merge-base --is-ancestor "$since" "$head" || die "$since is not an ancestor of HEAD"
+  [[ "$since" != "$head" ]] || die "nothing new since $since"
+  from=$since
+fi
 out="$(git rev-parse --path-format=absolute --git-dir)/bob-review/$head"
 mkdir -p "$out"
 
@@ -45,17 +61,20 @@ fi
   printf 'Repository: %s\nReviewed: %s at %s against %s (merge base %s)\n\n' \
     "$worktree" "${branch:-detached}" "$head" "$base" "$(git merge-base "$base" "$head")"
   printf '## Pull request\n\n%s\n\n' "${pr:-none open}"
-  printf '## Commits\n\n'; git log --format='%h %s%n%n%b' "$base..$head"
-  printf '\n## Diff\n\n```diff\n'; git diff "$base...$head"; printf '```\n'
+  [[ -z "$since" ]] || printf 'This is a confirmation round: the branch was reviewed in full at %s and its findings addressed. Review only the delta below for defects it introduces; do not re-review unchanged code.\n\n' "$since"
+  printf '## Commits\n\n'; git log --format='%h %s%n%n%b' "$from..$head"
+  printf '\n## Diff\n\n```diff\n'; git diff "$from...$head"; printf '```\n'
 } >"$out/fable-prompt.md"
 
 # Neither reviewer may read the terminal: a CLI waiting on stdin hangs forever.
-codex review --base "$base" </dev/null >"$out/codex.md" 2>"$out/codex.log" &
+codex review --base "$from" </dev/null >"$out/codex.md" 2>"$out/codex.log" &
 codex_pid=$!
 
 fable() {
   local json
-  json=$(claude -p --model claude-fable-5-1 --output-format json --tools Read,Grep,Glob --strict-mcp-config <"$out/fable-prompt.md")
+  # On failure Claude explains itself in the JSON on stdout; keep it.
+  json=$(claude -p --model claude-fable-5-1 --output-format json --tools Read,Grep,Glob --strict-mcp-config <"$out/fable-prompt.md") \
+    || { printf '%s\n' "$json" >&2; return 1; }
   jq -r '"Model: \(.modelUsage | keys | join(", "))\n\n\(.result)"' <<<"$json" >"$out/fable.md"
   [[ "$(jq -r .is_error <<<"$json")" == false ]]
 }
@@ -79,6 +98,6 @@ findings=$(grep -oE '^- \[P[0-9]\]' "$out/codex.md" | grep -oE 'P[0-9]' | sort |
 verdict=$(grep -m1 -oE '^Verdict: [a-z_]+' "$out/fable.md" | cut -d' ' -f2 || true)
 # Fail closed: untagged Codex output is quoted, not read as clean.
 [[ -n "$findings" ]] || findings="no tagged findings (\"$(head -c 160 "$out/codex.md" | head -1)\")"
-summary="Bob review at $head: Codex $findings · Fable ${verdict:-no verdict line, see fable.md}"
+summary="Bob review${since:+ (delta since ${since:0:7})} at $head: Codex $findings · Fable ${verdict:-no verdict line, see fable.md}"
 printf '%s\n' "$summary"
 [[ -z "$pr_number" ]] || gh pr comment "$pr_number" --repo "$gh" --body "$summary" >/dev/null

@@ -46,9 +46,9 @@ while IFS= read -r a; do
   branch=$(git -C "$cwd" branch --show-current)
   head=$(git -C "$cwd" rev-parse HEAD)
   ahead=$(git -C "$cwd" rev-list --count "$base..HEAD")
-  porcelain=$(git -C "$cwd" status --porcelain)
+  porcelain=$(git -C "$cwd" status --porcelain --untracked-files=all)
   dirty=$(grep -c . <<<"$porcelain" || true)
-  tmp=$(cut -c4- <<<"$porcelain" | grep -ciE '(^|/)tmp[-_.]|\.tmp\.' || true)
+  tmp=$(cut -c4- <<<"$porcelain" | grep -ciE '(^|/)tmp([-_./]|$)|\.tmp\.' || true)
   pr=""
   if [[ -n "$branch" ]]; then
     pr=$(gh pr list --repo "$gh" --head "$branch" --state all --json number,state,headRefOid,statusCheckRollup |

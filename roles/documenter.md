@@ -44,7 +44,7 @@ Read issue, callers, tests, and comments. Identify the enduring fact. Refactor u
 
 ## Output
 
-Return documented seams, executable encodings, removed prose, required decision-store links, and residual gaps.
+Return documented seams, executable encodings, removed prose, required tracker links, and residual gaps.
 
 Fail if a standalone ADR was added, mechanics are narrated, stale history remains, or practical contract tests are absent.
 

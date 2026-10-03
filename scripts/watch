@@ -110,7 +110,7 @@ def report(status, pane_id):
 
 # Discovery first, so a worker named while the snapshot is taken still arrives
 # as a pane_updated event.
-subscribe([{"type": "pane.updated"}, {"type": "pane.exited"}])
+subscribe([{"type": "pane.updated"}, {"type": "pane.exited"}, {"type": "pane.closed"}, {"type": "workspace.closed"}])
 for a in json.loads(subprocess.check_output(["herdr", "agent", "list"]))["result"]["agents"]:
     if ours(a):
         watch(a)
@@ -121,20 +121,28 @@ def handle(line):
         sys.exit(f"watch: {msg['error']}")
     # Events arrive as {"event": ..., "data": {...}}. Status events use the
     # subscription name (pane.agent_status_changed); general ones use
-    # underscores (pane_updated, pane_exited).
+    # underscores (pane_updated, pane_exited, pane_closed, workspace_closed).
     event, data = msg.get("event"), msg.get("data", {})
     if event == "pane.agent_status_changed" and data.get("agent_status") in NOTIFY:
         report(data["agent_status"], data["pane_id"])
-    elif event == "pane_exited" and data.get("pane_id") in watched:
+    elif event in ("pane_exited", "pane_closed") and data.get("pane_id") in watched:
         report("exited", data["pane_id"])
         forget(data["pane_id"])
+    elif event == "workspace_closed":
+        # Closing a workspace emits only this, not an event per pane.
+        for pane_id in [p for p, a in watched.items() if a.get("workspace_id") == data.get("workspace_id")]:
+            report("exited", pane_id)
+            forget(pane_id)
     elif event == "pane_updated":
         pane_id = data.get("pane", {}).get("pane_id")
         if pane_id in watched:
             # The agent can quit or crash back to its shell with the pane still
-            # open; no status or exit event says so.
-            if agent(pane_id) is None:
+            # open; no status or exit event says so. An agent renamed away from
+            # its worker name is no longer a worker.
+            if (a := agent(pane_id)) is None:
                 report("exited", pane_id)
+                forget(pane_id)
+            elif not ours(a):
                 forget(pane_id)
         elif pane_id and ours(a := agent(pane_id)):
             watch(a)
@@ -160,6 +168,11 @@ while True:
         if not chunk:
             if key.data["pane_id"] is None:
                 sys.exit("watch: Herdr closed the discovery subscription")
+            # Herdr ends a pane's subscription when the pane goes away. Report
+            # it here; a pane_exited queued on the discovery socket then finds
+            # the pane already forgotten and stays quiet.
+            if key.data["pane_id"] in watched:
+                report("exited", key.data["pane_id"])
             forget(key.data["pane_id"])
             continue
         key.data["buf"] += chunk

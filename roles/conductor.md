@@ -31,7 +31,7 @@ Conducting needs Herdr (`HERDR_ENV=1`); load the `herdr` skill for CLI syntax. W
 
 1. `scripts/status`: this repo's live agents, blocked first, then done. Tell the user what waits on them, one line each.
 2. Arm `scripts/watch` as a Monitor with the maximum timeout, and re-arm it whenever it expires. It is the instant channel: a line the moment a worker blocks, finishes a turn, or exits.
-3. Schedule the groom with CronCreate: recurring every 10 minutes on an off-minute (`3-59/10 * * * *`), prompt `Bob groom: run the Groom procedure in roles/conductor.md for <repo>.` It fires only while this session is idle, lives only as long as the session, and expires after 7 days; schedule it again on every boot. Run one groom now.
+3. Schedule the groom with CronCreate: recurring every 10 minutes on an off-minute (`3-59/10 * * * *`), prompt `Bob groom: run the Groom procedure in roles/conductor.md for <repo>.` Per CronCreate's own docs it fires only while this session is idle, lives only as long as the session, and expires after 7 days; schedule it again on every boot. Run one groom now.
 4. `ListAgents` gives this session's name for briefs' report-back line.
 5. Read the repo's AGENTS.md for the tracker, verification commands, and preview lane. Load `trackers/linear.md` if it says work lives in Linear, else `trackers/github.md`.
 

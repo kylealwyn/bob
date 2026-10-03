@@ -31,8 +31,11 @@ out="$(git rev-parse --path-format=absolute --git-dir)/bob-review/$head"
 mkdir -p "$out"
 
 pr=""
-[[ -n "$branch" ]] && pr=$(gh pr view "$branch" --repo "$(gh_repo)" --json number,title,body \
-  --jq '"#\(.number) \(.title)\n\n\(.body)"' 2>/dev/null || true)
+if [[ -n "$branch" ]] && ! pr=$(gh pr view "$branch" --repo "$(gh_repo)" --json number,title,body \
+    --jq '"#\(.number) \(.title)\n\n\(.body)"' 2>"$out/gh.log"); then
+  grep -q 'no pull requests found' "$out/gh.log" || die "gh pr view failed: $(cat "$out/gh.log")"
+  pr=""
+fi
 
 {
   cat "$roles/reviewer.md"

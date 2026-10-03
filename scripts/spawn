@@ -69,7 +69,10 @@ fi
 
 # Workers run on Opus; the conductor keeps the frontier model for itself.
 herdr agent start "$slug" --kind claude --pane "$pane" -- --dangerously-skip-permissions --model opus >/dev/null
-herdr agent prompt "$slug" "$(cat "$brief_file")" --wait --until working --timeout 60000 >/dev/null
+if ! herdr agent prompt "$slug" "$(cat "$brief_file")" --wait --until working --timeout 60000 >/dev/null; then
+  herdr pane read "$pane" --source visible >&2 || true
+  die "agent $slug started in $pane ($path) but didn't start working on the brief (screen above); answer what it shows, or close --abandon $slug"
+fi
 
 jq -nc --arg slug "$slug" --arg workspace "$workspace" --arg pane "$pane" --arg path "$path" --arg base "$from" \
   --arg setup "${envs[0]:-none}" \

@@ -58,7 +58,7 @@ Spawn independent items in parallel, and report one line per item. Workers run C
 - **Tracker**: the item's link.
 - **Merging**: you never merge. When the PR is ready, report `merge <head-sha>` and stop pushing to the branch.
 
-`spawn` refuses a slug that already has a worktree, branch, or live agent. It creates the worktree off the default branch without taking focus, runs the main checkout's `.codex/environments/*.toml` `[setup].script` (cleaning up if it fails), starts Claude on Opus as agent `<slug>`, and submits the brief.
+`spawn` refuses a slug that already has a worktree, branch, or live agent. It creates the worktree off the default branch without taking focus, runs the main checkout's `.codex/environments/*.toml` `[setup].script` (cleaning up if it fails), starts the worker as agent `<slug>` (Claude on Opus, or `--kind codex`), and submits the brief.
 
 ## Worker states
 
@@ -67,7 +67,7 @@ Spawn independent items in parallel, and report one line per item. Workers run C
 | State | Do |
 | --- | --- |
 | `blocked` | Read the form (`herdr agent read <worker> --source visible`). If it's the user's call (trust, permissions, production grants, an unsettled design), relay it once with your recommendation; they answer in the worker's pane, or here and you `herdr agent send-keys <worker> esc` and prompt their words. If it's aimed at you (sequencing, which option to build), pick the option with `send-keys` and tell the worker forms aren't how it reports. |
-| `gone` | Its agent quit. Read the pane's tail, then restart it in that pane (`herdr agent start <slug> --kind claude --pane <pane> -- --dangerously-skip-permissions --model opus`) and prompt it to resume from its PR and tracker item, or close it if the user dropped the work. |
+| `gone` | Its agent quit. Read the pane's tail (it shows which CLI ran), then restart the same kind in that pane with its launch from the harness file (`herdr agent start <slug> --kind <kind> --pane <pane> -- <args>`) and prompt it to resume from its PR and tracker item, or close it if the user dropped the work. |
 | `working` | Leave it, unless its last commit is over 30 minutes old (or it has none after two grooms): read the pane and pull it back with the next concrete step and a 15-minute budget. The usual cause is reshaping git history; squash-merge flattens it, so push and open the PR. |
 | `idle` | Read the tail. If it reported back, act on the report; otherwise prompt the next step. |
 | `no-pr` | Prompt: push and open the PR. |
@@ -109,7 +109,7 @@ After several merges in a row, watch the default branch's next CI run: each PR w
 
 ## Workers on other machines
 
-A worker can run on a saved Herdr machine (`herdr machine list`). Direct it with `herdr --machine <label> agent prompt <slug>`; its brief's report-back line is `herdr --machine <this machine> agent prompt foreman-<repo> "[<slug>@<its machine>] ..."`. `status` lists remote workers as `<slug>@<machine>` with their agent status; `watch` doesn't see them, so the groom covers them.
+A worker can run on a saved Herdr machine (`herdr machine list`). Direct it with `herdr --machine <label> agent prompt <slug>`; its brief gets the Herdr report-back line from your harness file, with `--machine <this machine>`, addressed to your pane id. `status` lists remote workers as `<slug>@<machine>` with their agent status; `watch` doesn't see them, so the groom covers them.
 
 ## Rules
 

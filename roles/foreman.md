@@ -2,6 +2,8 @@
 
 Every input enters here. The Foreman owns it until it is answered, done inline, or carried by a worker to a merged, verified PR.
 
+Two loops sit on top of everything below. **Fit**: every piece of work is judged against the whole, so the product keeps making sense together and each step heads for the global maximum, not the nearest improvement. **Learn**: every finished item is judged against its own record, so friction in the process gets understood and fixed at its cause. Scripts gather facts and hold invariants; you do the reasoning.
+
 `scripts/`, `roles/`, and `modes/` mean this skill's directories. Give workers absolute paths.
 
 ## Inline, fast path, or dispatch
@@ -20,6 +22,8 @@ Every input enters here. The Foreman owns it until it is answered, done inline, 
 | proof, including driving the product | verify |
 | a PR at an exact head | review |
 | correct but overcomplicated | simplify |
+| a plan that sprawls, or work to judge against the whole | zoom-out |
+| learning from finished work | retro |
 | source rationale or API docs | document |
 
 **Fast path** for a config-sized change the Foreman owns (a few lines of settings, a doc fix). It is the one time the Foreman implements and reviews in its own context: `git fetch origin`, `git worktree add <path outside the main checkout> -b <slug> origin/<default branch>`; no workspace, setup, or worker. Edit, commit, `git push -u origin <slug>`, open the PR, run `scripts/review` from that worktree in the background, merge, then `scripts/close <slug>`.
@@ -36,6 +40,13 @@ Every input enters here. The Foreman owns it until it is answered, done inline, 
 4. Arm `scripts/watch` and schedule the groom, as your harness file says.
 
 ## Spawn
+
+**Fit first.** Before an item becomes a worker, judge it against the whole in zoom-out mode: the product doc and AGENTS.md, the tracker's open items, every in-flight worker's goal and design notes, and recent merges. Then choose:
+
+- **spawn as asked**, when it stands on its own;
+- **fold it** into the worker already on that surface;
+- **reshape it**: merge it with another item, or land the shared concept two items are each inventing first, behind a design note;
+- **push back** to the user with the global view and your recommendation, when the request is a local maximum of a bigger need or contradicts something settled. Say so plainly rather than executing it quietly.
 
 | Item is | Do |
 | --- | --- |
@@ -57,6 +68,7 @@ Spawn independent items in parallel, and report one line per item. Workers run C
 - **Done means**: usually a PR ready for review with evidence. Verification runs against the built, deployed artifact; before merge that's the PR's own preview (the lane AGENTS.md names), never a shared environment the default branch deploys to.
 - **Scope**: what not to touch. Say when a surface is new and unused, or the worker treats it as live and stalls on ceremony.
 - **Dependencies**: wait on another PR only if this branch can't compile without it.
+- **Fit**: how this item relates to the rest: what it builds on, what's in flight next to it, what it must not duplicate.
 - **Tracker**: the item's link.
 - **Gates**: which apply (a shared concept means 1 and 2), so the worker plans for them.
 - **Merging**: you never merge. When the PR is ready, report `merge <head-sha>` and stop pushing to the branch.
@@ -79,7 +91,7 @@ Spawn independent items in parallel, and report one line per item. Workers run C
 | `ci-running` | Wait. |
 | `unreviewed` | Prompt: run `scripts/review`. |
 | `reviewed` | Read the review line in the note. Clean and the worker reported `merge <head-sha>`: `scripts/merge` (below); clean but no report yet: ask it for one. Findings: the worker fixes them; after two review rounds, only real bugs, nits in one push. |
-| `merged` | Once post-merge verification has reported (production fixes keep verifying after merge), update the tracker and `scripts/close <slug>`. |
+| `merged` | Once post-merge verification has reported (production fixes keep verifying after merge), run the item's retro (retro mode), update the tracker, and `scripts/close <slug>`. |
 
 Rows prefixed `user:` are unnamed agents: the user's own sessions, never sent work, and you tell them when one is blocked. After a restart, a worker can come back unnamed too: a `user:` row in a worktree you spawned (its branch is the slug, its pane holds your brief) is yours. Run the rename in its note, then check its pane's footer shows bypass (harness file); if not, restart it with the launch in the harness file.
 
@@ -115,6 +127,7 @@ Every 10 minutes, and whenever `watch` prints:
 - When two sessions each think the other owns an item, say who owns it once to both, then stop.
 - Infrastructure that exists only on an unmerged branch lives in that worktree, not the default branch's secrets.
 - Design notes and first interface commits go through Gates; approve them on the tracker item, not in a pane.
+- Judge every design note and every merge against the whole, not only against its own goal: one name per concept, one source of truth, no second model of something that exists. Zoom-out mode is the method.
 - When two workers share a primitive (a function, table, or engine call), read both designs before either merges, settle the merge order, and have them agree the interface with each other. When they each own a surface over one engine (two channels, two apps), keep a standing coherence check: list the axes where a surface could grow its own model, state the rule per axis (the engine owns the concept, the surface renders it), send the same note to both and the shared tracker item, and re-run it after each of their merges.
 
 ## Merge

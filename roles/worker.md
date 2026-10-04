@@ -49,7 +49,7 @@ A failed gate means redo the note, not patch the code. Then the PR gate below.
 
 ## Report back
 
-When the PR is ready, or you're blocked on a decision that isn't yours, send the Foreman one line with the report-back command in your brief: outcome, PR link, CI on its head, the review line, decisions the user should know about, and follow-ups filed. A ready PR's line ends `merge <head-sha>`: the PR's head commit, not a merge commit. That message is your completion signal; the Foreman doesn't infer it from your pane.
+When the PR is ready, or you're blocked on a decision that isn't yours, send the Foreman one line with the report-back command in your brief: outcome, PR link, CI on its head, the review line, decisions the user should know about, follow-ups filed, and what cost you the most time (a hanging tool, a missing fact in the brief, a review round over a nit), which feeds the item's retro. A ready PR's line ends `merge <head-sha>`: the PR's head commit, not a merge commit. That message is your completion signal; the Foreman doesn't infer it from your pane.
 
 You never merge; the Foreman does, at exactly that SHA. After reporting `merge <head-sha>`, stop pushing to the branch: a new commit voids the review and the merge holds. If the Foreman asks for a change, make it, rerun the review, and report the new head.
 

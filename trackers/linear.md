@@ -8,6 +8,7 @@ Selected when the repo's AGENTS.md says work lives in Linear. The repo's own Lin
 - The Linear GitHub integration links PRs and transitions tickets from the key in the PR. The Foreman fixes drift only: after merge, comment `Merged <sha>` and set Done only where automation didn't. A parent closes when its last sub-issue lands; don't leave it In Progress while every sub-issue sits In Review.
 - Follow-ups are issues related to the workstream ticket with the repo's follow-up convention (or label `follow-up` if it has none), state Backlog or Triage. Each groom gives every open one a disposition.
 - Serialize Linear calls; the API rate-limits around ten parallel requests.
+- The item's retro (`modes/retro.md`) is a comment on the ticket, posted before closing the workspace: facts, friction, cause, and the lesson's PR or "none".
 
 ## Worker
 

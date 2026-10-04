@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# retro <pr> | retro --since <YYYY-MM-DD> — the facts a retro reasons over,
+# gathered from the code host, never judged here (modes/retro.md does that).
+#
+#   retro <pr>          one item: opened to merged, commits, every Bob review
+#                       line, every merge hold, and failed CI runs on its branch
+#   retro --since <d>   every PR merged or closed since <d>, one line each,
+#                       costliest first, for the periodic system retro
+#
+# Facts come from the PR because every Bob repo has one there, whatever its
+# tracker; the retro's conclusions go to the tracker item (trackers/).
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+gh=$(gh_repo)
+me=$(gh api user --jq .login)
+
+facts() {
+  local n=$1 pr branch
+  pr=$(gh pr view "$n" --repo "$gh" --json number,title,headRefName,state,createdAt,mergedAt,closedAt,commits,changedFiles,comments)
+  branch=$(jq -r .headRefName <<<"$pr")
+  jq -r --arg me "$me" '
+    def hours(a; b): if a and b then (((b | fromdateiso8601) - (a | fromdateiso8601)) / 3600 | . * 10 | round / 10 | tostring) + "h" else "open" end;
+    "#\(.number) \(.title)",
+    "  \(.state | ascii_downcase), opened to \(if .mergedAt then "merged" else "closed" end): \(hours(.createdAt; .mergedAt // .closedAt)), \(.commits | length) commits, \(.changedFiles) files",
+    ([.comments[] | select(.author.login == $me and (.body | startswith("Bob review")))] | "  reviews: \(length)"),
+    ([.comments[] | select(.author.login == $me and (.body | startswith("Bob review")))][] | "    \(.body | sub("^Bob "; "") | .[0:200])"),
+    ([.comments[] | select(.author.login == $me and (.body | startswith("Bob merge hold")))] | "  merge holds: \(length)"),
+    ([.comments[] | select(.author.login == $me and (.body | startswith("Bob merge hold")))][] | "    \(.body | sub("^Bob merge "; "") | .[0:200])")
+  ' <<<"$pr"
+  gh run list --repo "$gh" --branch "$branch" --limit 100 --json conclusion,name |
+    jq -r '[.[] | select(.conclusion | IN("failure", "timed_out", "cancelled"))] | "  failed CI runs: \(length)" + (if length > 0 then " (" + (group_by(.name) | map("\(.[0].name) x\(length)") | join(", ")) + ")" else "" end)'
+}
+
+if [[ "${1:-}" == --since ]]; then
+  since="${2:?usage: retro --since <YYYY-MM-DD>}"
+  # One line per PR, costliest first by review rounds, holds, then hours open.
+  gh pr list --repo "$gh" --state all --search "closed:>=$since" --limit 200 \
+    --json number,title,state,createdAt,mergedAt,closedAt,comments |
+    jq -r --arg me "$me" '
+      map({n: .number, t: .title, s: (.state | ascii_downcase),
+           r: ([.comments[] | select(.author.login == $me and (.body | startswith("Bob review")))] | length),
+           h: ([.comments[] | select(.author.login == $me and (.body | startswith("Bob merge hold")))] | length),
+           hrs: ((((.mergedAt // .closedAt) | fromdateiso8601) - (.createdAt | fromdateiso8601)) / 3600 | round)})
+      | sort_by(-.r, -.h, -.hrs)[]
+      | "#\(.n) \(.s) reviews=\(.r) holds=\(.h) open=\(.hrs)h  \(.t)"'
+else
+  facts "${1:?usage: retro <pr> | retro --since <YYYY-MM-DD>}"
+fi

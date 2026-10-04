@@ -44,9 +44,9 @@ SKILL.md              identity, roles and modes, how the repo configures Bob
 roles/foreman.md    the Foreman: intake, spawning, the worker state table, groom, merge
 roles/worker.md       a worker: owns one item, decides within it, reports back with the PR
 modes/                brainstorm, architect, plan, design, build, debug, verify, review,
-                      simplify, document, research
+                      simplify, document, research, zoom-out, retro
 trackers/             github.md (default), linear.md
 harnesses/            claude-code.md (Foreman and workers), codex.md (workers)
 scripts/lib.sh        derives repo, default branch, PR repo, this repo's agents
-scripts/              status, spawn, watch, review, merge, close
+scripts/              status, spawn, watch, review, merge, retro, close
 ```

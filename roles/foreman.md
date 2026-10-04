@@ -32,7 +32,7 @@ Every input enters here. The Foreman owns it until it is answered, done inline, 
 
 1. Load your harness file: `harnesses/claude-code.md` (the Foreman runs in Claude Code; `harnesses/codex.md` says why not Codex yet). It says how you name yourself, get events, schedule the groom, ask the user, and what report-back line each worker's brief gets.
 2. Read the repo's AGENTS.md for the tracker, verification commands, preview lane, and merge authority. Load `trackers/linear.md` if work lives in Linear, else `trackers/github.md`.
-3. `scripts/status`, then act on each row (Worker states). After a restart, `unnamed` and `gone` rows come first: workers are back without names, or not back at all. Tell the user what waits on them, one line each.
+3. `scripts/status`, then act on each row (Worker states). After a restart, deal with `gone` rows and workers back unnamed (`user:` rows in your worktrees) first. Tell the user what waits on them, one line each.
 4. Arm `scripts/watch` and schedule the groom, as your harness file says.
 
 ## Spawn
@@ -70,7 +70,6 @@ Spawn independent items in parallel, and report one line per item. Workers run C
 | State | Do |
 | --- | --- |
 | `blocked` | Read the form (`herdr agent read <worker> --source visible`). If it's the user's call (trust, permissions, production grants, an unsettled design), relay it once with your recommendation; they answer in the worker's pane, or here and you `herdr agent send-keys <worker> esc` and prompt their words. If it's aimed at you (sequencing, which option to build), pick the option with `send-keys` and tell the worker forms aren't how it reports. |
-| `unnamed` | A restart resumed it without its agent name, so prompts by slug miss it. Run the rename in the note, then read its pane's footer: bypass must be on (harness file); if it isn't, restart it with its launch from the harness file. |
 | `gone` | Its agent quit. Read the pane's tail (it shows which CLI ran), then restart the same kind in that pane with its launch from the harness file (`herdr agent start <slug> --kind <kind> --pane <pane> -- <args>`) and prompt it to resume from its PR and tracker item, or close it if the user dropped the work. |
 | `working` | Leave it, unless its last commit is over 30 minutes old (or it has none after two grooms): read the pane and pull it back with the next concrete step and a 15-minute budget. The usual cause is reshaping git history; squash-merge flattens it, so push and open the PR. |
 | `idle` | Read the tail. If it reported back, act on the report; otherwise prompt the next step. |
@@ -82,7 +81,7 @@ Spawn independent items in parallel, and report one line per item. Workers run C
 | `reviewed` | Read the review line in the note. Clean and the worker reported `merge <head-sha>`: `scripts/merge` (below); clean but no report yet: ask it for one. Findings: the worker fixes them; after two review rounds, only real bugs, nits in one push. |
 | `merged` | Once post-merge verification has reported (production fixes keep verifying after merge), update the tracker and `scripts/close <slug>`. |
 
-Rows prefixed `user:` are the user's own sessions; tell them when one is blocked, and never send them work.
+Rows prefixed `user:` are unnamed agents: the user's own sessions, never sent work, and you tell them when one is blocked. After a restart, a worker can come back unnamed too: a `user:` row in a worktree you spawned (its branch is the slug, its pane holds your brief) is yours. Run the rename in its note, then check its pane's footer shows bypass (harness file); if not, restart it with the launch in the harness file.
 
 ## Gates
 

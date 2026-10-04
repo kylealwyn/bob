@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# retro <pr> | retro --since <YYYY-MM-DD> — the facts a retro reasons over,
+# gathered from the code host, never judged here (modes/retro.md does that).
+#
+#   retro <pr>          one item: opened to merged, commits, every Bob review
+#                       and merge hold with its time, and the CI runs on its
+#                       branch while it was open: failed, cancelled, rerun
+#   retro --since <d>   every PR merged or closed since <d>, one line each,
+#                       costliest first, for the periodic system retro
+#
+# Facts come from the PR because every Bob repo has one there, whatever its
+# tracker; the retro's conclusions go to the tracker item (trackers/).
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+gh=$(gh_repo)
+me=$(gh api user --jq .login)
+
+facts() {
+  local n=$1 pr branch
+  pr=$(gh pr view "$n" --repo "$gh" --json number,title,headRefName,state,createdAt,mergedAt,closedAt,commits,changedFiles,comments)
+  branch=$(jq -r .headRefName <<<"$pr")
+  jq -r --arg me "$me" '
+    def hours(a; b): if a and b then (((b | fromdateiso8601) - (a | fromdateiso8601)) / 3600 | . * 10 | round / 10 | tostring) + "h" else "open" end;
+    "#\(.number) \(.title)",
+    "  \(.state | ascii_downcase), opened to \(if .mergedAt then "merged" else "closed" end): \(hours(.createdAt; .mergedAt // .closedAt)), \(.commits | length) commits, \(.changedFiles) files",
+    ([.comments[] | select(.author.login == $me and (.body | startswith("Bob review")))] | "  reviews: \(length)"),
+    ([.comments[] | select(.author.login == $me and (.body | startswith("Bob review")))][] | "    \(.createdAt[5:16] | sub("T"; " ")) \(.body | sub("^Bob "; ""))"),
+    ([.comments[] | select(.author.login == $me and (.body | startswith("Bob merge hold")))] | "  merge holds: \(length)"),
+    ([.comments[] | select(.author.login == $me and (.body | startswith("Bob merge hold")))][] | "    \(.createdAt[5:16] | sub("T"; " ")) \(.body | sub("^Bob merge "; ""))")
+  ' <<<"$pr"
+  # Runs on the branch while this PR was open: that keeps heads a rebase
+  # replaced, and leaves out older PRs that reused the branch name. A run with
+  # more than one attempt was retried, so an earlier attempt failed or flaked;
+  # the runs API reports only its latest conclusion.
+  gh api --paginate "repos/$gh/actions/runs?branch=$branch&per_page=100" \
+    --jq '.workflow_runs[] | {name, conclusion, attempt: .run_attempt, at: .created_at}' |
+    jq -rs --arg from "$(jq -r .createdAt <<<"$pr")" --arg to "$(jq -r '.mergedAt // .closedAt // "9999"' <<<"$pr")" '
+      def tally(f): [.[] | select(f)] | "\(length)" + (if length > 0 then " (" + (group_by(.name) | map("\(.[0].name) x\(length)") | join(", ")) + ")" else "" end);
+      [.[] | select(.at >= $from and .at <= $to)]
+      | "  CI runs: failed \(tally(.conclusion | IN("failure", "timed_out"))), cancelled \(tally(.conclusion == "cancelled")), rerun \(tally(.attempt > 1))"'
+}
+
+if [[ "${1:-}" == --since ]]; then
+  since="${2:?usage: retro --since <YYYY-MM-DD>}"
+  # One line per PR, costliest first by review rounds, holds, then hours open.
+  limit=1000
+  prs=$(gh pr list --repo "$gh" --state all --search "closed:>=$since" --limit "$limit" \
+    --json number,title,state,createdAt,mergedAt,closedAt,comments)
+  [[ "$(jq length <<<"$prs")" -lt "$limit" ]] || echo "warning: $limit PRs closed since $since, the most gh returns; narrow --since for a complete ranking" >&2
+  jq -r --arg me "$me" '
+      map({n: .number, t: .title, s: (.state | ascii_downcase),
+           r: ([.comments[] | select(.author.login == $me and (.body | startswith("Bob review")))] | length),
+           h: ([.comments[] | select(.author.login == $me and (.body | startswith("Bob merge hold")))] | length),
+           hrs: ((((.mergedAt // .closedAt) | fromdateiso8601) - (.createdAt | fromdateiso8601)) / 3600 | round)})
+      | sort_by(-.r, -.h, -.hrs)[]
+      | "#\(.n) \(.s) reviews=\(.r) holds=\(.h) open=\(.hrs)h  \(.t)"' <<<"$prs"
+else
+  facts "${1:?usage: retro <pr> | retro --since <YYYY-MM-DD>}"
+fi

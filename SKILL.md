@@ -35,6 +35,8 @@ Every Bob session has one **role** for its whole life, and switches **modes** as
 | `simplify` | removing avoidable complexity |
 | `document` | keeping reasoning near its source |
 | `research` | changing external facts |
+| `zoom-out` | judging work against the whole; the global maximum, not the nearest step |
+| `retro` | learning from finished work: facts, friction, cause, one fix at the owning seam |
 
 Pick the mode by the current bottleneck, not the user's vocabulary. Any role uses any mode.
 
@@ -61,7 +63,8 @@ Each scopes to the repo of the checkout it runs in, so Foremen in two repos neve
 | `spawn [--kind codex] <slug> <brief>` | worktree, setup, a worker named `<slug>`, brief submitted |
 | `watch` | prints the moment a worker blocks, finishes a turn, or exits; run as a Monitor |
 | `review [--note <file>]` | Codex and Fable reviews of HEAD, one verdict line on the PR; `--note` reviews a design note (gates 1 and 2) |
-| `merge <pr> <head-sha>` | squash-merges at exactly the reviewed head, or holds with a non-zero exit |
+| `merge <pr> <head-sha>` | squash-merges at exactly the reviewed head, or holds with a non-zero exit and records the hold on the PR |
+| `retro <pr>` / `retro --since <date>` | the facts a retro reasons over: time, commits, reviews, holds, failed CI |
 | `close [--abandon] <slug>...` | stops the agent, removes worktree and workspace, deletes the branch; refuses unmerged or dirty work |
 
 ## Working standard
@@ -78,7 +81,7 @@ Each scopes to the repo of the checkout it runs in, so Foremen in two repos neve
 
 ## Learn
 
-Put a durable lesson at the seam that owns it, once:
+Bob learns from evidence, not impressions: every finished item gets a retro (`modes/retro.md`), and a lesson lands once, at the seam that owns it:
 
 - engineering method → the mode file;
 - the Foreman's or a worker's job → `roles/` or `scripts/`;

@@ -15,14 +15,24 @@ source "$(dirname "$0")/lib.sh"
 
 n="${1:?usage: merge <pr> <sha>}"
 want="${2:?usage: merge <pr> <sha>}"
-hold() { echo "hold #$n: $*" >&2; exit 1; }
+# A hold is a fact the retro reads (scripts/retro), so it's recorded on the
+# open PR as well as printed. Recording is best effort; the exit status is the
+# signal relays chain on.
+hold() {
+  echo "hold #$n: $*" >&2
+  [[ -z "${gh:-}" || "${state:-}" != OPEN ]] ||
+    gh pr comment "$n" --repo "$gh" --body "Bob merge hold at ${head:-?}: $*" >/dev/null 2>&1 ||
+    echo "hold #$n: not recorded on the PR, so retro won't count it" >&2
+  exit 1
+}
 
 gh=$(gh_repo)
 me=$(gh api user --jq .login)
 pr=$(gh pr view "$n" --repo "$gh" --json state,isDraft,headRefOid,comments)
-[[ "$(jq -r .state <<<"$pr")" == OPEN ]] || hold "PR is $(jq -r .state <<<"$pr")"
-[[ "$(jq -r .isDraft <<<"$pr")" == false ]] || hold "PR is a draft"
+state=$(jq -r .state <<<"$pr")
 head=$(jq -r .headRefOid <<<"$pr")
+[[ "$state" == OPEN ]] || hold "PR is $state"
+[[ "$(jq -r .isDraft <<<"$pr")" == false ]] || hold "PR is a draft"
 [[ ${#want} -ge 7 && "$head" == "$want"* ]] || hold "PR head is ${head:0:7}, not the reviewed ${want:0:7}"
 
 review=$(jq -r --arg me "$me" --arg head "$head" \

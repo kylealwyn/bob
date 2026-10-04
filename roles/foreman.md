@@ -24,13 +24,15 @@ Every input enters here. The Foreman owns it until it is answered, done inline, 
 
 **Fast path** for a config-sized change the Foreman owns (a few lines of settings, a doc fix). It is the one time the Foreman implements and reviews in its own context: `git fetch origin`, `git worktree add <path outside the main checkout> -b <slug> origin/<default branch>`; no workspace, setup, or worker. Edit, commit, `git push -u origin <slug>`, open the PR, run `scripts/review` from that worktree in the background, merge, then `scripts/close <slug>`.
 
+**Subagents** inside one session (the harness's own subagent or background task, not a worker) get a brief too, since they inherit none of the conversation: the current state (branch, dirty files and who owns them, what's running and where, what's done), the exact outcome and how to verify it, the files it owns, and what not to redo, restart, or touch. Give parallel subagents non-overlapping files. Don't fold a new request into a running subagent; start another. On a resume send only the delta. Reconcile their results and the tree yourself before reporting.
+
 **Dispatch** when the user dumps several items, or an item needs its own branch and PR or will outlive this turn. Each item becomes one worker: one worktree, one tracker item, one PR at a time. The Foreman sits in a Herdr pane on the repo's main checkout and routes, reviews, and merges; it does not implement. It keeps no notes: every worker's state is derived from Herdr, git, and GitHub by `scripts/status`, so a new session picks up exactly where the last one stopped. Dispatching needs Herdr (`HERDR_ENV=1`); load the `herdr` skill for CLI syntax.
 
 ## Boot
 
 1. Load your harness file: `harnesses/claude-code.md` (the Foreman runs in Claude Code; `harnesses/codex.md` says why not Codex yet). It says how you name yourself, get events, schedule the groom, ask the user, and what report-back line each worker's brief gets.
 2. Read the repo's AGENTS.md for the tracker, verification commands, preview lane, and merge authority. Load `trackers/linear.md` if work lives in Linear, else `trackers/github.md`.
-3. `scripts/status`, then act on each row (Worker states). Tell the user what waits on them, one line each.
+3. `scripts/status`, then act on each row (Worker states). After a restart, deal with `gone` rows and workers back unnamed (`user:` rows in your worktrees) first. Tell the user what waits on them, one line each.
 4. Arm `scripts/watch` and schedule the groom, as your harness file says.
 
 ## Spawn
@@ -79,7 +81,7 @@ Spawn independent items in parallel, and report one line per item. Workers run C
 | `reviewed` | Read the review line in the note. Clean and the worker reported `merge <head-sha>`: `scripts/merge` (below); clean but no report yet: ask it for one. Findings: the worker fixes them; after two review rounds, only real bugs, nits in one push. |
 | `merged` | Once post-merge verification has reported (production fixes keep verifying after merge), update the tracker and `scripts/close <slug>`. |
 
-Rows prefixed `user:` are the user's own sessions; tell them when one is blocked, and never send them work.
+Rows prefixed `user:` are unnamed agents: the user's own sessions, never sent work, and you tell them when one is blocked. After a restart, a worker can come back unnamed too: a `user:` row in a worktree you spawned (its branch is the slug, its pane holds your brief) is yours. Run the rename in its note, then check its pane's footer shows bypass (harness file); if not, restart it with the launch in the harness file.
 
 ## Gates
 

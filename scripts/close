@@ -28,7 +28,14 @@ refuse() { echo "$slug: $*"; failed=1; }
 for slug in "$@"; do
   path=$(git -C "$repo" worktree list --porcelain | awk -v want="$slug" '
     /^worktree / {p = substr($0, 10)} /^branch / && $0 == "branch refs/heads/" want {print p; exit}')
-  [[ -n "$path" ]] || { refuse "no worktree on branch $slug"; continue; }
+  # A worker that finished parks its worktree detached on the default branch,
+  # so the branch lookup finds nothing; the worktree is then the one spawn
+  # created, named by the slug.
+  if [[ -z "$path" ]]; then
+    path=$(git -C "$repo" worktree list --porcelain | awk -v want="/$slug" '
+      /^worktree / {p = substr($0, 10); if (substr(p, length(p) - length(want) + 1) == want) {print p; exit}}')
+  fi
+  [[ -n "$path" ]] || { refuse "no worktree for $slug"; continue; }
   [[ "$path" != "$repo" ]] || { refuse "is the main checkout"; continue; }
   pr=$(gh pr list --repo "$gh" --head "$slug" --state open --json number --jq '.[0].number // empty')
   [[ -z "$pr" ]] || { refuse "PR #$pr is still open, not closing"; continue; }

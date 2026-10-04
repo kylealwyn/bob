@@ -2,9 +2,9 @@
 
 ## Worker
 
-`scripts/spawn --kind codex` starts it with `--dangerously-bypass-approvals-and-sandbox`, on the model in `~/.codex/config.toml`; that model must be one the CLI accepts for your login. Codex asks to trust each new folder unless a parent is already trusted in that config; Herdr's worktree directory under a trusted home folder covers it. Trusting a folder is the user's decision, never the Foreman's.
+`scripts/spawn --kind codex` starts it with `--dangerously-bypass-approvals-and-sandbox`. A restart resumes it with `codex resume <id>` and no flags, so bypass also has to be the CLI default: `approval_policy = "never"` and `sandbox_mode = "danger-full-access"` in `~/.codex/config.toml`. It runs on the model in that config; that model must be one the CLI accepts for your login. Codex asks to trust each new folder unless a parent is already trusted in that config; Herdr's worktree directory under a trusted home folder covers it. Trusting a folder is the user's decision, never the Foreman's.
 
-Codex has no cross-session messaging, so its brief gets the Herdr report-back line from the Foreman's harness file, addressed to the Foreman's pane id.
+Its brief gets the same Herdr report-back line as every worker, from the Foreman's harness file.
 
 ## Foreman
 

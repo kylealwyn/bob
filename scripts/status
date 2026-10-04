@@ -8,6 +8,8 @@
 # States, first match wins:
 #   blocked     agent shows an approval or question form
 #   gone        workspace open, no agent
+#   unnamed     an agent in a worker's workspace without its name (a restart
+#               resumed it without one), so prompts by slug can't reach it
 #   working     agent mid-turn
 #   merged      a merged PR's head is HEAD
 #   unpushed    open PR whose head isn't HEAD (local commits not pushed)
@@ -77,14 +79,22 @@ while IFS= read -r a; do
   row "$name" "$state" "$(jq -r .pr <<<"$p")" "$last" "${note%; }"
 done < <(jq -c 'select(.name)' <<<"$agents")
 
-# A worker whose agent quit or crashed leaves its workspace open with no agent.
-live=$(jq -r '.workspace_id' <<<"$agents" | sort -u)
-herdr worktree list --cwd "$repo" | jq -r --arg repo "$repo" \
-  '.result.worktrees[] | select(.open_workspace_id and .path != $repo) | "\(.open_workspace_id) \(.path)"' |
-  while read -r workspace path; do
-    grep -qx "$workspace" <<<"$live" ||
-      row "$(git -C "$path" branch --show-current)" gone - - "workspace $workspace has no agent; pane: herdr pane list --workspace $workspace"
-  done
+# A worker's workspace is a Herdr worktree workspace other than the main
+# checkout. One with no agent is gone (it quit or crashed); one whose agent has
+# no name was resumed by a restart and needs its name back.
+worker_workspaces=$(herdr worktree list --cwd "$repo" | jq -r --arg repo "$repo" \
+  '.result.worktrees[] | select(.open_workspace_id and .path != $repo) | "\(.open_workspace_id) \(.path)"')
+while read -r workspace path; do
+  [[ -n "$workspace" ]] || continue
+  slug=$(git -C "$path" branch --show-current); slug=${slug:-$(basename "$path")}
+  here=$(jq -c --arg w "$workspace" 'select(.workspace_id == $w)' <<<"$agents")
+  if [[ -z "$here" ]]; then
+    row "$slug" gone - - "workspace $workspace has no agent; pane: herdr pane list --workspace $workspace"
+  elif ! jq -e 'select(.name)' >/dev/null <<<"$here"; then
+    pane=$(jq -r '.pane_id' <<<"$here" | head -1)
+    row "$slug" unnamed - - "herdr agent rename $pane $slug"
+  fi
+done <<<"$worker_workspaces"
 
 # Workers on saved Herdr machines: their cwd is remote, so only the agent
 # status is known here, and the repo can't be checked.
@@ -94,7 +104,8 @@ for m in $(herdr machine list --json 2>/dev/null | jq -r '.[]? | select(.enabled
     while IFS=$'\t' read -r name agent cwd; do row "$name@$m" "$agent" - - "remote, $cwd"; done
 done
 
-jq -r 'select(.name | not) | [.agent_status, .pane_id, (.cwd | split("/") | last), (.terminal_title_stripped // "")] | @tsv' <<<"$agents" |
+worker_ids=$(cut -d' ' -f1 <<<"$worker_workspaces")
+jq -r --arg ids "$worker_ids" 'select((.name | not) and (.workspace_id as $w | $ids | split("\n") | index($w) | not)) | [.agent_status, .pane_id, (.cwd | split("/") | last), (.terminal_title_stripped // "")] | @tsv' <<<"$agents" |
   while IFS=$'\t' read -r agent pane checkout title; do
     row "user:$pane" "$agent" - - "$checkout: $title"
   done

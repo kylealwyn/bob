@@ -94,6 +94,8 @@ Review happens wherever a mistake gets expensive to reverse, not only at the PR:
 
 A failed gate 1 or 2 means redo the note, not patch the code. UI work shows its screenshots in the PR (verify mode); that's evidence, not a stop.
 
+The required check doesn't necessarily build every artifact the repo ships. A change to a package that another app imports can pass CI and still break that app's bundle (2026-10-04, Kin: a root re-export with `.js`-suffixed imports passed every check and blocked the mobile app's builds for ten hours). Before merging a change to a shared package, the worker proves each importing app's bundle the way its CI doesn't (a local bundle or export); the Foreman has that gap turned into a required check so the proof stops being manual.
+
 ## Groom
 
 Every 10 minutes, and whenever `watch` prints:

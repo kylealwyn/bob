@@ -28,11 +28,10 @@ Every input enters here. The Foreman owns it until it is answered, done inline, 
 
 ## Boot
 
-1. Read the repo's AGENTS.md for the tracker, verification commands, preview lane, and merge authority. Load `trackers/linear.md` if work lives in Linear, else `trackers/github.md`.
-2. `ListAgents` gives this session's name, for briefs.
+1. Load your harness file: `harnesses/claude-code.md` (the Foreman runs in Claude Code; `harnesses/codex.md` says why not Codex yet). It says how you name yourself, get events, schedule the groom, ask the user, and what report-back line each worker's brief gets.
+2. Read the repo's AGENTS.md for the tracker, verification commands, preview lane, and merge authority. Load `trackers/linear.md` if work lives in Linear, else `trackers/github.md`.
 3. `scripts/status`, then act on each row (Worker states). Tell the user what waits on them, one line each.
-4. Arm `scripts/watch` as a Monitor with the maximum timeout; re-arm it whenever it expires.
-5. Schedule the groom: CronCreate, recurring `3-59/10 * * * *`, prompt `Bob groom: run the Groom in roles/foreman.md for <repo>.` Per its docs it fires only while this session is idle, lives with the session, and expires after 7 days, so schedule it on every boot.
+4. Arm `scripts/watch` and schedule the groom, as your harness file says.
 
 ## Spawn
 
@@ -43,13 +42,13 @@ Every input enters here. The Foreman owns it until it is answered, done inline, 
 | Answerable from code, data, or a worker's output | Answer it here, read-only |
 | Ambiguous in a way that changes the work | Ask the user first |
 
-Spawn independent items in parallel, and report one line per item.
+Spawn independent items in parallel, and report one line per item. Workers run Claude Code unless you pass `scripts/spawn --kind codex` (see `harnesses/`).
 
 **Slug**: kebab-case product noun, at most 32 characters (`chat-load`). It is the branch, worktree, workspace label, and agent name. To pick up a pushed branch, use its name; `spawn` bases on `origin/<slug>` when it exists.
 
 **Brief**, written to the scratchpad. The worker loads AGENTS.md and the user's rules itself; don't restate them.
 
-- **You are a Bob worker**: read `<abs>/roles/worker.md` first; start in `<abs>/modes/<mode>.md`; review with `<abs>/scripts/review`; report to `<this session's name>`.
+- **You are a Bob worker**: read `<abs>/roles/worker.md` first; start in `<abs>/modes/<mode>.md`; review with `<abs>/scripts/review`; report back with `<the line your harness file gives for this worker>`.
 - **Goal**: the outcome in a sentence or two.
 - **From the user**: their words, verbatim, with links.
 - **Context**: facts already established (files, PRs, decisions). Skip what the worker finds faster. The brief is a starting point; the worker owns the decisions inside its goal.
@@ -110,7 +109,7 @@ After several merges in a row, watch the default branch's next CI run: each PR w
 
 ## Workers on other machines
 
-A worker can run on a saved Herdr machine (`herdr machine list`). Direct it with `herdr --machine <label> agent prompt <slug>`. `SendMessage` doesn't cross machines, but Herdr forwarding works both ways: name your own pane `foreman` (`herdr agent rename <your pane> foreman`), and in the brief replace the SendMessage line with `herdr --machine <this machine> agent prompt foreman "[<slug>@<its machine>] ..."`. `status` lists remote workers as `<slug>@<machine>` with their agent status; `watch` doesn't see them, so the groom covers them. Their tracker item stays the record.
+A worker can run on a saved Herdr machine (`herdr machine list`). Direct it with `herdr --machine <label> agent prompt <slug>`; its brief's report-back line is `herdr --machine <this machine> agent prompt foreman-<repo> "[<slug>@<its machine>] ..."`. `status` lists remote workers as `<slug>@<machine>` with their agent status; `watch` doesn't see them, so the groom covers them.
 
 ## Rules
 

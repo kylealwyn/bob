@@ -47,8 +47,9 @@ No config file. Everything comes from the checkout the Foreman runs in:
 | repo, default branch, PR repo | git common dir, `origin/HEAD`, `gh repo view` (`scripts/lib.sh`) |
 | worktree setup | `[setup].script` of the repo's one `.codex/environments/*.toml`; none if absent |
 | tracker | AGENTS.md: `trackers/linear.md` if work lives in Linear, else `trackers/github.md` |
+| harness | the agent CLI a session runs in: `harnesses/claude-code.md` (Foreman and workers), `harnesses/codex.md` (workers) |
 | verification, preview lane, merge authority | AGENTS.md or the session |
-| models | workers `claude --model opus`; reviews `codex review` and `claude -p --model claude-fable-5-1` |
+| models | workers Claude Opus (or Codex with `spawn --kind codex`); reviews `codex review` and `claude -p --model claude-fable-5-1` |
 
 ## Scripts
 
@@ -57,7 +58,7 @@ Each scopes to the repo of the checkout it runs in, so Foremen in two repos neve
 | Script | Does |
 | --- | --- |
 | `status` | each worker's derived state (blocked, gone, working, no-pr, ci-red, reviewed, merged, ...) |
-| `spawn <slug> <brief>` | worktree, setup, Opus worker named `<slug>`, brief submitted |
+| `spawn [--kind codex] <slug> <brief>` | worktree, setup, a worker named `<slug>`, brief submitted |
 | `watch` | prints the moment a worker blocks, finishes a turn, or exits; run as a Monitor |
 | `review` | Codex and Fable reviews of HEAD; one verdict line commented on the PR |
 | `merge <pr> <head-sha>` | squash-merges at exactly the reviewed head, or holds with a non-zero exit |
@@ -82,6 +83,7 @@ Put a durable lesson at the seam that owns it, once:
 - engineering method → the mode file;
 - the Foreman's or a worker's job → `roles/` or `scripts/`;
 - tracker behavior → `trackers/`;
+- agent CLI behavior → `harnesses/`;
 - project configuration and safety → the repo's AGENTS.md;
 - historical choices → the tracker;
 - implementation truth → source, types, tests, comments.

@@ -46,6 +46,7 @@ roles/worker.md       a worker: owns one item, decides within it, reports back w
 modes/                brainstorm, architect, plan, design, build, debug, verify, review,
                       simplify, document, research
 trackers/             github.md (default), linear.md
+harnesses/            claude-code.md (Foreman and workers), codex.md (workers)
 scripts/lib.sh        derives repo, default branch, PR repo, this repo's agents
 scripts/              status, spawn, watch, review, merge, close
 ```

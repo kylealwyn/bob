@@ -23,12 +23,15 @@ function harness(savedRole?: string, flag?: string) {
   const commands = new Map<string, { handler: Function }>();
   const tools = new Map<string, { execute: Function }>();
   const messages: unknown[] = [];
+  const selectedModels: string[] = [];
   const warnings: string[] = [];
   const entries: any[] = savedRole ? [{ type: "custom", customType: "bob-role", data: { role: savedRole } }] : [];
   const events = new EventEmitter();
   let idle = true;
   const ctx = {
     mode: "tui", cwd: "/example/repo", isIdle: () => idle,
+    model: { provider: "openai", id: "gpt-6-sol" },
+    modelRegistry: { find: (provider: string, id: string) => ({ provider, id }) },
     sessionManager: { getEntries: () => entries },
     ui: { setStatus() {}, notify: (text: string) => warnings.push(text), select: async () => undefined, input: async () => undefined },
   } as unknown as ExtensionContext;
@@ -39,9 +42,10 @@ function harness(savedRole?: string, flag?: string) {
     registerCommand: (name: string, command: { handler: Function }) => commands.set(name, command),
     registerTool: (tool: { name: string; execute: Function }) => tools.set(tool.name, tool),
     sendMessage: (message: unknown) => messages.push(message),
+    setModel: async (model: { provider: string; id: string }) => { selectedModels.push(`${model.provider}/${model.id}`); return true; },
     sendUserMessage: (message: unknown) => messages.push(message), events,
   } as unknown as ExtensionAPI);
-  return { handlers, commands, tools, messages, warnings, entries, events, ctx,
+  return { handlers, commands, tools, messages, selectedModels, warnings, entries, events, ctx,
     emit: (name: string, event: unknown = {}) => handlers.get(name)?.(event, ctx),
     setIdle: (value: boolean) => { idle = value; },
   };
@@ -58,6 +62,18 @@ test("a worker restores its role without launch flags and never supervises", () 
   h.emit("model_select");
   assert.equal(h.entries.length, 1);
   assert.throws(() => harness("worker", "foreman").emit("session_start"), /differs/);
+  h.emit("session_shutdown");
+});
+
+test("an existing Pi session attaches as a worker and keeps its role and later model choice", async () => {
+  const h = harness(); h.emit("session_start");
+  await h.commands.get("bob")!.handler("--role worker Continue the saved task", h.ctx);
+  assert.equal(watchers.length, 0);
+  assert.deepEqual(h.selectedModels, ["openai/gpt-6.1-sol"]);
+  assert.equal(h.entries[0].data.role, "worker");
+  await h.commands.get("bob")!.handler("", h.ctx);
+  assert.equal(h.selectedModels.length, 1);
+  await assert.rejects(h.commands.get("bob")!.handler("--role foreman", h.ctx), /Bob worker/);
   h.emit("session_shutdown");
 });
 

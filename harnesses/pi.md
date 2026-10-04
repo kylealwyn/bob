@@ -10,7 +10,7 @@ Log in with Pi's `/login`. Pick a frontier model with `/model`, and use `/scoped
 
 ## Foreman
 
-- Start `pi` and run `/bob <request>`, or run `scripts/start` from the project checkout. `/bob` activates the Foreman in an ordinary Pi session; a worker keeps its worker role. Bob records the role in the Pi session, so it survives model changes, compaction, and resume.
+- Start `pi` and run `/bob <request>`, or run `scripts/start` from the project checkout. `/bob` activates the Foreman in an ordinary Pi session; a worker keeps its worker role. For an existing Pi worker, reload the installed package with `/reload`, then run `/bob --role worker` to attach without replacing its conversation. Bob records the role in the Pi session, so it survives model changes, compaction, and resume.
 - The Bob extension starts `scripts/watch` and the existing ten-minute groom in Herdr. Worker events wake the Foreman through Pi's custom messages; events during a run or question coalesce into a groom at the next completed run boundary. An error or abort pauses these wakeups until a user prompt or model change. This is supervision, not new user authority.
 - Watch failure is visible in the footer and notification. Fix the reported cause and run `/bob` to rearm. Reload, session replacement, and shutdown stop the old watcher and timer.
 - Outside Herdr, Bob works inline. Dispatch and supervision require Herdr; do not inspect the user's focused server from another environment.

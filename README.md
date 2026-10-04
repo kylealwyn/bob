@@ -39,6 +39,8 @@ Run `/model` in any Foreman or worker to switch in place. Stop an active run bef
 
 Review with `scripts/review`, optionally selecting one or two models with `--model`. Two fresh contexts preserve reviewer independence even when only one provider is available. Reviews record actual model IDs and structured findings; `scripts/merge` still checks the exact head and green CI. Merge authority must come from the user or AGENTS.md.
 
+Existing Pi workers can adopt the installed package with `/reload` then `/bob --role worker`; their conversation and worktree stay in place.
+
 ## Layout
 
 ```text

@@ -138,18 +138,23 @@ export default function bob(pi: ExtensionAPI) {
   });
 
   pi.registerCommand("bob", {
-    description: "Start Bob as Foreman, or continue this Bob session; /model changes the model",
+    description: "Start or continue Bob; --role worker attaches an existing worker session",
     handler: async (request, ctx) => {
+      const explicit = /^--role (foreman|worker)(?:\s+([\s\S]*))?$/.exec(request.trim());
+      if (request.trim().startsWith("--role") && !explicit) throw new Error("usage: /bob [--role foreman|worker] [request]");
+      const nextRole = explicit ? explicit[1] as Role : role ?? "foreman";
+      if (role && role !== nextRole) throw new Error(`This session is a Bob ${role}; start a new session for ${nextRole}.`);
+      const task = explicit ? explicit[2] : request;
       if (!role) {
-        const selected = roleModel("foreman", ctx.model?.provider);
+        const selected = roleModel(nextRole, ctx.model?.provider);
         const [provider, ...id] = selected.split("/");
         const model = ctx.modelRegistry.find(provider, id.join("/"));
-        if (!model) throw new Error(`Bob Foreman model ${selected} is unavailable; update models.json or BOB_MODELS_FILE.`);
+        if (!model) throw new Error(`Bob ${nextRole} model ${selected} is unavailable; update models.json or BOB_MODELS_FILE.`);
         if (!await pi.setModel(model)) throw new Error(`Log in to ${provider} with /login before starting Bob.`);
       }
-      setRole(role ?? "foreman", ctx);
+      setRole(nextRole, ctx);
       paused = false;
-      pi.sendUserMessage(`Read ${root}SKILL.md and ${root}roles/${role}.md. ${request || "Run Boot and resume the current work."}`, { deliverAs: "followUp" });
+      pi.sendUserMessage(`Read ${root}SKILL.md and ${root}roles/${role}.md. ${task || (role === "foreman" ? "Run Boot and resume the current work." : "Resume your current assignment and existing brief; inspect live state before repeating effects.")}`, { deliverAs: "followUp" });
     },
   });
 

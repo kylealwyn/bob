@@ -1,9 +1,9 @@
 # Bob
 
-Bob the Engineer is an agent skill that takes a request from understanding to a verified, merged PR. One task, it works inline, switching modes (brainstorm, plan, build, debug, verify, ...) as it goes. A list, it conducts: each item becomes a worker in its own git worktree with a brief, a tracker item, and a PR that Codex and Fable review before merge.
+Bob the Engineer is an agent skill that takes a request from understanding to a verified, merged PR. One task, it works inline, switching modes (brainstorm, plan, build, debug, verify, ...) as it goes. A list, the Foreman dispatches it: each item becomes a worker in its own git worktree with a brief, a tracker item, and a PR that Codex and Fable review before merge.
 
 ```
-/bob <dump> ──▶ Conductor (Herdr pane on the main checkout)
+/bob <dump> ──▶ Foreman (Herdr pane on the main checkout)
                   ├─ spawn ──▶ worker: worktree + setup + Claude Opus ──▶ PR ──▶ review
                   ├─ spawn ──▶ worker ...
                   ├─ every 10m and on each event: status → one action per worker state
@@ -25,7 +25,7 @@ git clone https://github.com/kylealwyn/bob ~/dev/bob
 ln -s ~/dev/bob ~/.claude/skills/bob
 ```
 
-Conducting needs [Herdr](https://herdr.dev), `gh` (authed), `jq`, `python3` 3.11+, `claude`, and `codex`. Inline work needs none of them.
+Dispatching workers needs [Herdr](https://herdr.dev), `gh` (authed), `jq`, `python3` 3.11+, `claude`, and `codex`. Inline work needs none of them.
 
 ## Adopt in a repo (five minutes)
 
@@ -41,7 +41,7 @@ Conducting needs [Herdr](https://herdr.dev), `gh` (authed), `jq`, `python3` 3.11
 
 ```
 SKILL.md              identity, roles and modes, how the repo configures Bob
-roles/conductor.md    the Conductor: intake, spawning, the worker state table, groom, merge
+roles/foreman.md    the Foreman: intake, spawning, the worker state table, groom, merge
 roles/worker.md       a worker: owns one item, decides within it, reports back with the PR
 modes/                brainstorm, architect, plan, design, build, debug, verify, review,
                       simplify, document, research

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # merge <pr> <sha> — squash-merge a worker's PR at exactly the head the
-# Conductor approved, or hold.
+# Foreman approved, or hold.
 #
 # <sha> is the PR head the worker reported (`merge <head-sha>`), not a merge
 # commit. It holds, exiting non-zero with the reason, unless all are true:

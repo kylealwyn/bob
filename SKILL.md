@@ -1,6 +1,6 @@
 ---
 name: bob
-description: "Engineers every request from understanding to a verified, merged PR. Works inline in focused modes, or conducts workers: in Herdr, each item gets its own worktree, brief, tracker item, and PR reviewed by Codex and Fable. Use when the user says /bob, dumps a list of tasks to farm out, or asks what their workers are doing."
+description: "Engineers every request from understanding to a verified, merged PR. Works inline in focused modes, or as the Foreman dispatches workers: in Herdr, each item gets its own worktree, brief, tracker item, and PR reviewed by Codex and Fable. Use when the user says /bob, dumps a list of tasks to farm out, or asks what their workers are doing."
 argument-hint: <request or task dump>
 user-invocable: true
 ---
@@ -19,8 +19,8 @@ Every Bob session has one **role** for its whole life, and switches **modes** as
 
 | Role | Is |
 | --- | --- |
-| Conductor (`roles/conductor.md`) | the session on the repo's main checkout. Every input enters here: it answers, works inline, or spawns a worker per item, then derives each worker's state from Herdr, git, and GitHub every 10 minutes and on each `watch` event, and takes that state's one action, through review and merge to close |
-| worker (`roles/worker.md`) | a session the Conductor spawned for one item, in its own worktree. It owns the item: decides within its goal and records why, asks the user what's theirs, tells the Conductor when the item should split, and reports back with the PR at an exact head |
+| Foreman (`roles/foreman.md`) | the session on the repo's main checkout. Every input enters here: it answers, works inline, or spawns a worker per item, then derives each worker's state from Herdr, git, and GitHub every 10 minutes and on each `watch` event, and takes that state's one action, through review and merge to close |
+| worker (`roles/worker.md`) | a session the Foreman spawned for one item, in its own worktree. It owns the item: decides within its goal and records why, asks the user what's theirs, tells the Foreman when the item should split, and reports back with the PR at an exact head |
 
 | Mode | For |
 | --- | --- |
@@ -40,7 +40,7 @@ Pick the mode by the current bottleneck, not the user's vocabulary. Any role use
 
 ## The repo is the configuration
 
-No config file. Everything comes from the checkout the Conductor runs in:
+No config file. Everything comes from the checkout the Foreman runs in:
 
 | Need | Source |
 | --- | --- |
@@ -52,7 +52,7 @@ No config file. Everything comes from the checkout the Conductor runs in:
 
 ## Scripts
 
-Each scopes to the repo of the checkout it runs in, so Conductors in two repos never see each other's workers.
+Each scopes to the repo of the checkout it runs in, so Foremen in two repos never see each other's workers.
 
 | Script | Does |
 | --- | --- |
@@ -80,7 +80,7 @@ Each scopes to the repo of the checkout it runs in, so Conductors in two repos n
 Put a durable lesson at the seam that owns it, once:
 
 - engineering method → the mode file;
-- conducting or a worker's contract → `roles/` or `scripts/`;
+- the Foreman's or a worker's job → `roles/` or `scripts/`;
 - tracker behavior → `trackers/`;
 - project configuration and safety → the repo's AGENTS.md;
 - historical choices → the tracker;

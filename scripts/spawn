@@ -67,7 +67,7 @@ if [[ -n "${setup//[[:space:]]/}" ]]; then
   rm -f "$script"
 fi
 
-# Workers run on Opus; the conductor keeps the frontier model for itself.
+# Workers run on Opus; the foreman keeps the frontier model for itself.
 herdr agent start "$slug" --kind claude --pane "$pane" -- --dangerously-skip-permissions --model opus >/dev/null
 if ! herdr agent prompt "$slug" "$(cat "$brief_file")" --wait --until working --timeout 60000 >/dev/null; then
   herdr pane read "$pane" --source visible >&2 || true

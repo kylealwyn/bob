@@ -12,7 +12,7 @@ Choose the lightest honest path and state it so the user can correct it:
 
 When uncertain, choose the heavier path. Hidden complexity upgrades the path immediately; never quietly finish under a weaker contract.
 
-The size of the artifact scales down. The approval boundary does not: once the Conductor routes work through the Brainstormer, no retained implementation begins until the proposed direction is approved.
+The size of the artifact scales down. The approval boundary does not: once the Foreman routes work through the Brainstormer, no retained implementation begins until the proposed direction is approved.
 
 ## Read before asking
 
@@ -56,7 +56,7 @@ Propose a next step only for one precise question:
 - **Grill:** the answer belongs to the user.
 - **Task:** concrete work is required only to unblock a decision.
 
-Include dependencies between steps. The map is an index, not a second source of truth. Bob the Conductor turns approved steps into tracker items and workers.
+Include dependencies between steps. The map is an index, not a second source of truth. Bob the Foreman turns approved steps into tracker items and workers.
 
 ## Path completion
 

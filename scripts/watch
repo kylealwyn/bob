@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""watch — print a line the moment a worker in this repo needs the Conductor.
+"""watch — print a line the moment a worker in this repo needs the Foreman.
 
 Run it as a Monitor; each line is an event: `<event> <pane> <worker> <title>`.
 

@@ -39,7 +39,7 @@ for slug in "$@"; do
     refuse "agent is mid-turn, not closing"; continue
   fi
 
-  # A worker's workspace exists only under Herdr; the Conductor's fast path has none.
+  # A worker's workspace exists only under Herdr; the Foreman's fast path has none.
   # With no Herdr server running there is no live workspace to stop.
   [[ "${HERDR_ENV:-}" != 1 ]] || command -v herdr >/dev/null || die "inside Herdr but the herdr CLI isn't on PATH"
   if command -v herdr >/dev/null; then

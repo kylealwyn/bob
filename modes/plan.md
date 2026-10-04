@@ -44,7 +44,7 @@ Out of scope: <one line>
 Mode: build
 ```
 
-Each task becomes one tracker item, one worker, and one PR. Only Bob the Conductor creates them.
+Each task becomes one tracker item, one worker, and one PR. Only Bob the Foreman creates them.
 
 ## Check the plan
 
@@ -57,7 +57,7 @@ Each task becomes one tracker item, one worker, and one PR. Only Bob the Conduct
 
 ## Output
 
-Return the ordered task index, dependencies, parallel lanes, checkpoints, risks, and first proposed ready slice. Stop for approval. After approval, Bob the Conductor opens the tracker items and spawns workers; the planner never spawns or writes tracker state.
+Return the ordered task index, dependencies, parallel lanes, checkpoints, risks, and first proposed ready slice. Stop for approval. After approval, Bob the Foreman opens the tracker items and spawns workers; the planner never spawns or writes tracker state.
 
 ## Sources
 

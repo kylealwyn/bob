@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # status — every worker in this repo with its state, derived each time from
 # Herdr (the agent), git (its worktree), and GitHub (its PR). Nothing is stored.
-# The Conductor acts on the state column (roles/conductor.md, Worker states).
+# The Foreman acts on the state column (roles/foreman.md, Worker states).
 #
 #   worker  state  pr  last commit  note
 #

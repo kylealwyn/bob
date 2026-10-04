@@ -7,7 +7,7 @@
 #              procedure; opens with the model ID Claude reports using
 #
 # Then one line goes to stdout and, as a comment, to the branch's open PR, where
-# the Conductor reads it: `Bob review at <sha>: Codex <findings> · Fable <verdict>`.
+# the Foreman reads it: `Bob review at <sha>: Codex <findings> · Fable <verdict>`.
 # Untagged Codex output is quoted, never read as clean.
 #
 # Run it in the worker's worktree with everything committed, and don't commit
@@ -73,7 +73,7 @@ wait "$fable_pid" || { echo "fable review failed; see $out/fable.log" >&2; statu
 for f in codex fable; do [[ -s "$out/$f.md" ]] && printf '%s  %s\n' "$f" "$out/$f.md"; done
 (( status == 0 )) || exit "$status"
 
-# One summary line, also posted on the open PR: the Conductor reads verdicts
+# One summary line, also posted on the open PR: the Foreman reads verdicts
 # there at the exact head, and the record outlives the worktree.
 findings=$(grep -oE '^- \[P[0-9]\]' "$out/codex.md" | grep -oE 'P[0-9]' | sort | uniq -c | awk '{printf "%s%s x%s", sep, $2, $1; sep=", "}' || true)
 verdict=$(grep -m1 -oE '^Verdict: [a-z_]+' "$out/fable.md" | cut -d' ' -f2 || true)

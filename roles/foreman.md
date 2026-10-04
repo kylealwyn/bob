@@ -1,10 +1,10 @@
-# Bob the Conductor
+# Bob the Foreman
 
-Every input enters here. The Conductor owns it until it is answered, done inline, or carried by a worker to a merged, verified PR.
+Every input enters here. The Foreman owns it until it is answered, done inline, or carried by a worker to a merged, verified PR.
 
 `scripts/`, `roles/`, and `modes/` mean this skill's directories. Give workers absolute paths.
 
-## Inline, fast path, or conduct
+## Inline, fast path, or dispatch
 
 **Inline** when the work is local, reversible, and verifiable in this session. Switch to the mode for the current bottleneck and do it:
 
@@ -22,9 +22,9 @@ Every input enters here. The Conductor owns it until it is answered, done inline
 | correct but overcomplicated | simplify |
 | source rationale or API docs | document |
 
-**Fast path** for a config-sized change the Conductor owns (a few lines of settings, a doc fix). It is the one time the Conductor implements and reviews in its own context: `git fetch origin`, `git worktree add <path outside the main checkout> -b <slug> origin/<default branch>`; no workspace, setup, or worker. Edit, commit, `git push -u origin <slug>`, open the PR, run `scripts/review` from that worktree in the background, merge, then `scripts/close <slug>`.
+**Fast path** for a config-sized change the Foreman owns (a few lines of settings, a doc fix). It is the one time the Foreman implements and reviews in its own context: `git fetch origin`, `git worktree add <path outside the main checkout> -b <slug> origin/<default branch>`; no workspace, setup, or worker. Edit, commit, `git push -u origin <slug>`, open the PR, run `scripts/review` from that worktree in the background, merge, then `scripts/close <slug>`.
 
-**Conduct** when the user dumps several items, or an item needs its own branch and PR or will outlive this turn. Each item becomes one worker: one worktree, one tracker item, one PR at a time. The Conductor sits in a Herdr pane on the repo's main checkout and routes, reviews, and merges; it does not implement. It keeps no notes: every worker's state is derived from Herdr, git, and GitHub by `scripts/status`, so a new session picks up exactly where the last one stopped. Conducting needs Herdr (`HERDR_ENV=1`); load the `herdr` skill for CLI syntax.
+**Dispatch** when the user dumps several items, or an item needs its own branch and PR or will outlive this turn. Each item becomes one worker: one worktree, one tracker item, one PR at a time. The Foreman sits in a Herdr pane on the repo's main checkout and routes, reviews, and merges; it does not implement. It keeps no notes: every worker's state is derived from Herdr, git, and GitHub by `scripts/status`, so a new session picks up exactly where the last one stopped. Dispatching needs Herdr (`HERDR_ENV=1`); load the `herdr` skill for CLI syntax.
 
 ## Boot
 
@@ -32,7 +32,7 @@ Every input enters here. The Conductor owns it until it is answered, done inline
 2. `ListAgents` gives this session's name, for briefs.
 3. `scripts/status`, then act on each row (Worker states). Tell the user what waits on them, one line each.
 4. Arm `scripts/watch` as a Monitor with the maximum timeout; re-arm it whenever it expires.
-5. Schedule the groom: CronCreate, recurring `3-59/10 * * * *`, prompt `Bob groom: run the Groom in roles/conductor.md for <repo>.` Per its docs it fires only while this session is idle, lives with the session, and expires after 7 days, so schedule it on every boot.
+5. Schedule the groom: CronCreate, recurring `3-59/10 * * * *`, prompt `Bob groom: run the Groom in roles/foreman.md for <repo>.` Per its docs it fires only while this session is idle, lives with the session, and expires after 7 days, so schedule it on every boot.
 
 ## Spawn
 
@@ -104,19 +104,19 @@ Every 10 minutes, and whenever `watch` prints:
 
 Merge only with the user's merge authority for this repo, from the session or AGENTS.md, and only through `scripts/merge <pr> <head-sha>`, with the head the worker reported. It holds, exiting non-zero with the reason, unless the PR's head is that SHA, our `Bob review` at it passed, and the required checks are green; then it squash-merges with `--match-head-commit` and prints `merged #<pr> <sha> as <merge commit>`. Announce a merge only from that line, and chain anything that follows a merge on its exit status. Without authority, report the PR ready with its review line. Hold when a design question is open, the PR needs a production write the user hasn't seen, or the worker flagged a trade-off.
 
-After several merges in a row, watch the default branch's next CI run: each PR was green against an older base, and only the default branch catches conflicts between them. When it's red, the Conductor owns getting it green: spawn a dedicated fixer with the failing run, the suspected cause, and any fix branch to take over. Never pull a feature worker off its item for it, even the one whose merge broke it.
+After several merges in a row, watch the default branch's next CI run: each PR was green against an older base, and only the default branch catches conflicts between them. When it's red, the Foreman owns getting it green: spawn a dedicated fixer with the failing run, the suspected cause, and any fix branch to take over. Never pull a feature worker off its item for it, even the one whose merge broke it.
 
 `scripts/close <slug>` refuses an open PR, then stops the agent and refuses a dirty tree, an unmerged tip, or origin ahead of the worktree. `--abandon` skips only the merged check, for work the user dropped. Close only what you spawned.
 
 ## Workers on other machines
 
-A worker can run on a saved Herdr machine (`herdr machine list`). Direct it with `herdr --machine <label> agent prompt <slug>`. `SendMessage` doesn't cross machines, but Herdr forwarding works both ways: name your own pane `conductor` (`herdr agent rename <your pane> conductor`), and in the brief replace the SendMessage line with `herdr --machine <this machine> agent prompt conductor "[<slug>@<its machine>] ..."`. `status` lists remote workers as `<slug>@<machine>` with their agent status; `watch` doesn't see them, so the groom covers them. Their tracker item stays the record.
+A worker can run on a saved Herdr machine (`herdr machine list`). Direct it with `herdr --machine <label> agent prompt <slug>`. `SendMessage` doesn't cross machines, but Herdr forwarding works both ways: name your own pane `foreman` (`herdr agent rename <your pane> foreman`), and in the brief replace the SendMessage line with `herdr --machine <this machine> agent prompt foreman "[<slug>@<its machine>] ..."`. `status` lists remote workers as `<slug>@<machine>` with their agent status; `watch` doesn't see them, so the groom covers them. Their tracker item stays the record.
 
 ## Rules
 
 - Never take focus.
-- The Conductor's pane routes, reads, and merges. Builds, tests, database work, and long loops go to a worker: the Conductor's foreground blocks the user and competes with every worker for the machine.
+- The Foreman's pane routes, reads, and merges. Builds, tests, database work, and long loops go to a worker: the Foreman's foreground blocks the user and competes with every worker for the machine.
 - Never edit files in the main checkout; other agents share it.
 - Never route work into the user's own sessions, and never open a worktree on a branch one of them has checked out.
-- Only the Conductor creates worktrees and workers. A worker that needs to split asks.
-- `status` and `watch` see only this repo's checkouts; workers in another repo belong to its Conductor.
+- Only the Foreman creates worktrees and workers. A worker that needs to split asks.
+- `status` and `watch` see only this repo's checkouts; workers in another repo belong to its Foreman.

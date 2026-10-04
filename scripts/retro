@@ -23,26 +23,31 @@ facts() {
     "#\(.number) \(.title)",
     "  \(.state | ascii_downcase), opened to \(if .mergedAt then "merged" else "closed" end): \(hours(.createdAt; .mergedAt // .closedAt)), \(.commits | length) commits, \(.changedFiles) files",
     ([.comments[] | select(.author.login == $me and (.body | startswith("Bob review")))] | "  reviews: \(length)"),
-    ([.comments[] | select(.author.login == $me and (.body | startswith("Bob review")))][] | "    \(.body | sub("^Bob "; "") | .[0:200])"),
+    ([.comments[] | select(.author.login == $me and (.body | startswith("Bob review")))][] | "    \(.body | sub("^Bob "; ""))"),
     ([.comments[] | select(.author.login == $me and (.body | startswith("Bob merge hold")))] | "  merge holds: \(length)"),
-    ([.comments[] | select(.author.login == $me and (.body | startswith("Bob merge hold")))][] | "    \(.body | sub("^Bob merge "; "") | .[0:200])")
+    ([.comments[] | select(.author.login == $me and (.body | startswith("Bob merge hold")))][] | "    \(.body | sub("^Bob merge "; ""))")
   ' <<<"$pr"
-  gh run list --repo "$gh" --branch "$branch" --limit 100 --json conclusion,name |
-    jq -r '[.[] | select(.conclusion | IN("failure", "timed_out", "cancelled"))] | "  failed CI runs: \(length)" + (if length > 0 then " (" + (group_by(.name) | map("\(.[0].name) x\(length)") | join(", ")) + ")" else "" end)'
+  # Only runs on this PR's own commits: a reused branch name carries older runs.
+  gh api --paginate "repos/$gh/actions/runs?branch=$branch&per_page=100" --jq '.workflow_runs[] | {sha: .head_sha, name, conclusion}' |
+    jq -rs --argjson shas "$(jq -c '[.commits[].oid]' <<<"$pr")" '
+      [.[] | select(.sha as $s | $shas | index($s)) | select(.conclusion | IN("failure", "timed_out", "cancelled"))]
+      | "  failed CI runs: \(length)" + (if length > 0 then " (" + (group_by(.name) | map("\(.[0].name) x\(length)") | join(", ")) + ")" else "" end)'
 }
 
 if [[ "${1:-}" == --since ]]; then
   since="${2:?usage: retro --since <YYYY-MM-DD>}"
   # One line per PR, costliest first by review rounds, holds, then hours open.
-  gh pr list --repo "$gh" --state all --search "closed:>=$since" --limit 200 \
-    --json number,title,state,createdAt,mergedAt,closedAt,comments |
-    jq -r --arg me "$me" '
+  limit=1000
+  prs=$(gh pr list --repo "$gh" --state all --search "closed:>=$since" --limit "$limit" \
+    --json number,title,state,createdAt,mergedAt,closedAt,comments)
+  [[ "$(jq length <<<"$prs")" -lt "$limit" ]] || echo "warning: $limit PRs closed since $since, the most gh returns; narrow --since for a complete ranking" >&2
+  jq -r --arg me "$me" '
       map({n: .number, t: .title, s: (.state | ascii_downcase),
            r: ([.comments[] | select(.author.login == $me and (.body | startswith("Bob review")))] | length),
            h: ([.comments[] | select(.author.login == $me and (.body | startswith("Bob merge hold")))] | length),
            hrs: ((((.mergedAt // .closedAt) | fromdateiso8601) - (.createdAt | fromdateiso8601)) / 3600 | round)})
       | sort_by(-.r, -.h, -.hrs)[]
-      | "#\(.n) \(.s) reviews=\(.r) holds=\(.h) open=\(.hrs)h  \(.t)"'
+      | "#\(.n) \(.s) reviews=\(.r) holds=\(.h) open=\(.hrs)h  \(.t)"' <<<"$prs"
 else
   facts "${1:?usage: retro <pr> | retro --since <YYYY-MM-DD>}"
 fi

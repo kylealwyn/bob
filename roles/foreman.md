@@ -35,7 +35,7 @@ Two loops sit on top of everything below. **Fit**: every piece of work is judged
 ## Boot
 
 1. Load your harness file: `harnesses/claude-code.md` (the Foreman runs in Claude Code; `harnesses/codex.md` says why not Codex yet). It says how you name yourself, get events, schedule the groom, ask the user, and what report-back line each worker's brief gets.
-2. Read the repo's AGENTS.md for the tracker, verification commands, preview lane, and merge authority. Load `trackers/linear.md` if work lives in Linear, else `trackers/github.md`.
+2. Read the repo's AGENTS.md for the tracker, verification commands, preview lane, release or apply pipeline (if it deploys), and merge authority. Load `trackers/linear.md` if work lives in Linear, else `trackers/github.md`.
 3. `scripts/status`, then act on each row (Worker states). After a restart, deal with `gone` rows and workers back unnamed (`user:` rows in your worktrees) first. Tell the user what waits on them, one line each.
 4. Arm `scripts/watch` and schedule the groom, as your harness file says.
 
@@ -91,7 +91,7 @@ Spawn independent items in parallel, and report one line per item. Workers run C
 | `ci-running` | Wait. |
 | `unreviewed` | Prompt: run `scripts/review`. |
 | `reviewed` | Read the review line in the note. Clean and the worker reported `merge <head-sha>`: `scripts/merge` (below); clean but no report yet: ask it for one. Findings: the worker fixes them; after two review rounds, only real bugs, nits in one push. |
-| `merged` | Where the repo deploys (its AGENTS.md names the release or apply pipeline), read the release run that carries the merge and close only once it reached production green; where it doesn't, the default branch's CI on the merge is the check. Close after post-merge verification has reported too (production fixes keep verifying after merge). Then run the item's retro (retro mode), update the tracker, and `scripts/close <slug>`. |
+| `merged` | Where the repo deploys (its AGENTS.md names the release or apply pipeline), read the release run that carries the merge and close only once it reached production green; where it doesn't, the default branch's CI on the merge is the check, and where there's no CI, post-merge verification alone. Close after post-merge verification has reported too (production fixes keep verifying after merge). Then run the item's retro (retro mode), update the tracker, and `scripts/close <slug>`. |
 
 Rows prefixed `user:` are unnamed agents: the user's own sessions, never sent work, and you tell them when one is blocked. After a restart, a worker can come back unnamed too: a `user:` row in a worktree you spawned (its branch is the slug, its pane holds your brief) is yours. Run the rename in its note, then check its pane's footer shows bypass (harness file); if not, restart it with the launch in the harness file.
 
@@ -104,7 +104,7 @@ Review happens wherever a mistake gets expensive to reverse, not only at the PR:
 | 1. Design note | A shared concept (a schema, a wire contract, a store, a module), before any code binds to it | Writes the note in a file outside the repo, runs `scripts/review --note <file>`, posts the note, the review line, and the findings to its tracker item, messages you, and keeps going on parts that don't bind | Read the note and findings, then approve or send back as a tracker comment with the findings, never only a pane prompt. Relay the note and findings to the user before code binds; they can veto |
 | 2. First interface commit | The commit that turns the note into code: a migration, types, a wire protocol | Runs `scripts/review --note <file>` on that commit, posts the result to the tracker item, waits | Approve on the tracker before anything is built on it |
 | 3. PR | Ready for review | `scripts/review`, fixes, reports `merge <head-sha>` | `scripts/merge` |
-| 4. After merge | The release that carries the merge, or the default branch's CI where nothing deploys | Verifies on the deployed artifact | Read that run yourself: `merged` closes only when it is green (production green where the repo deploys), and a production fix is done when the deployed artifact shows it. A worker's message is a claim; the run, the PR, and the artifact are the evidence, and you announce only what you read from them |
+| 4. After merge | The release that carries the merge, or the default branch's CI where nothing deploys | Verifies on the deployed artifact | Read that run yourself: `merged` closes only when it is green (production green where the repo deploys); a repo with no CI on its default branch has no run to read, and post-merge verification alone decides. A production fix is done when the deployed artifact shows it. A hand-run apply reports its plan output, which is the evidence you read. A worker's message is a claim; the run, the PR, and the artifact are the evidence, and you announce only what you read from them |
 
 A failed gate 1 or 2 means redo the note, not patch the code. UI work shows its screenshots in the PR (verify mode); that's evidence, not a stop.
 

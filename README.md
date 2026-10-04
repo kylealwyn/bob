@@ -34,7 +34,7 @@ Dispatching workers needs [Herdr](https://herdr.dev), `gh` (authed), `jq`, `pyth
 3. Only if the defaults don't fit:
    - **Setup**: `.codex/environments/environment.toml` with a `[setup]` `script`. Bob runs it in each new worktree and stops if it fails.
    - **Tracker**: GitHub issues by default. If work lives in Linear, say so in AGENTS.md with your team and label rules.
-   - **Verification**: test commands and the pre-merge preview lane in AGENTS.md.
+   - **Verification**: test commands, the pre-merge preview lane, and the release or apply pipeline (if the repo deploys) in AGENTS.md.
    - **Merge authority**: grant it in the session or AGENTS.md. Without it, Bob reports PRs ready with their review verdicts.
 
 ## Layout

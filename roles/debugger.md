@@ -45,7 +45,7 @@ If automation cannot observe it, document an exact bounded acceptance procedure 
 
 ## Report back
 
-Report back as Bob the Builder does, with the PR at an exact head. Put these diagnostic fields in the PR body:
+Report back as `worker.md` says, with the PR at an exact head. Put these diagnostic fields in the PR body:
 
 ```text
 Reproduction:

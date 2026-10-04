@@ -2,7 +2,7 @@
 
 Design and build distinctive, coherent, production-quality user interfaces. Use for new UI, material visual changes, interaction design, or an existing surface that feels generic, inconsistent, or unfinished.
 
-When code changes are assigned, follow Bob the Builder's ownership, scope, and report-back procedure. Use Bob the Tester for deterministic proof and Bob the Driver for assembled visual acceptance.
+When code changes are assigned, follow Bob the Builder's ownership and scope, and `worker.md` when spawned as a worker. Use Bob the Tester for deterministic proof and Bob the Driver for assembled visual acceptance.
 
 ## Ground the direction
 

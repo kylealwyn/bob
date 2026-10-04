@@ -1,16 +1,86 @@
 #!/usr/bin/env bash
-# status — one line per live agent in this repo's checkouts, other than the
-# conductor itself: status, checkout (cwd basename, which is the worktree
-# slug), agent name or pane id, and the topic the agent writes into its
-# terminal title. Agents that need the user (blocked) sort first, then
-# finished ones (done), then the rest.
+# status — every worker in this repo with its state, derived each time from
+# Herdr (the agent), git (its worktree), and GitHub (its PR). Nothing is stored.
+# The Conductor acts on the state column (roles/conductor.md, Worker states).
+#
+#   worker  state  pr  last commit  note
+#
+# States, first match wins:
+#   blocked     agent shows an approval or question form
+#   gone        workspace open, no agent
+#   working     agent mid-turn
+#   merged      a merged PR's head is HEAD
+#   reviewed    open PR with a `Bob review` comment at HEAD
+#   ci-red      open PR, a check failed or was cancelled
+#   ci-running  open PR, checks pending
+#   unreviewed  open PR, CI green or absent, no review at HEAD
+#   no-pr       commits ahead of the default branch, no PR
+#   idle        nothing committed yet
+#
+# The user's own sessions in this repo (unnamed agents) follow, with their
+# agent status only: blocked ones wait on the user.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 require_herdr
 
-repo_agents | jq -rs '
-  {blocked: 0, done: 1, unknown: 2, idle: 3, working: 4} as $rank
-  | sort_by($rank[.agent_status] // 9)
-  | .[]
-  | [.agent_status, (.cwd | split("/") | last), (.name // .pane_id), (.terminal_title_stripped // "")]
-  | @tsv' | column -t -s $'\t'
+agents=$(repo_agents)
+gh=$(gh_repo)
+
+pr_jq='
+  def ci: [.statusCheckRollup[] |
+      (.conclusion // "") as $c | (.state // "") as $s |
+      if ([$c, $s] | any(IN("FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE", "ERROR"))) then "fail"
+      elif ((.status // "COMPLETED") != "COMPLETED") or ($s | IN("PENDING", "EXPECTED")) then "pending"
+      else "pass" end]
+    | if index("fail") then "fail" elif index("pending") then "pending" else "pass" end;
+  (map(select(.state == "OPEN"))[0]) as $open
+  | (map(select(.state == "MERGED" and .headRefOid == $head))[0]) as $merged
+  | if $merged then {pr: "#\($merged.number)", state: "merged"}
+    elif $open then
+      ([$open.comments[] | select(.body | startswith("Bob review"))]) as $reviews
+      | ($reviews | map(select(.body | contains($head))) | last | .body // "") as $review
+      | {pr: "#\($open.number)", rounds: ($reviews | length), review: ($review | sub("^Bob review[^:]*: "; "")),
+         state: (if $review != "" then "reviewed"
+                 else ($open | ci) as $ci
+                 | if $ci == "fail" then "ci-red" elif $ci == "pending" then "ci-running" else "unreviewed" end end)}
+    else {pr: "", state: ""} end'
+
+row() { printf '%-24s %-11s %-6s %-12s %s\n' "$@"; }
+row worker state pr "last commit" note
+
+while IFS= read -r a; do
+  [[ -n "$a" ]] || continue
+  name=$(jq -r .name <<<"$a"); cwd=$(jq -r .cwd <<<"$a"); agent=$(jq -r .agent_status <<<"$a")
+  head=$(git -C "$cwd" rev-parse HEAD)
+  ahead=$(git -C "$cwd" rev-list --count "$base..HEAD")
+  last="-"; (( ahead == 0 )) || last=$(git -C "$cwd" log -1 --format=%cr | sed 's/ ago//')
+  dirty=$(git -C "$cwd" status --porcelain --untracked-files=all | grep -c . || true)
+  branch=$(git -C "$cwd" branch --show-current)
+  p='{"pr": "", "state": ""}'
+  [[ -z "$branch" ]] || p=$(gh pr list --repo "$gh" --head "$branch" --state all \
+    --json number,state,headRefOid,statusCheckRollup,comments | jq -c --arg head "$head" "$pr_jq")
+  case "$agent" in
+    blocked) state=blocked ;;
+    working) state=working ;;
+    *) state=$(jq -r .state <<<"$p")
+       [[ -n "$state" ]] || { (( ahead > 0 )) && state=no-pr || state=idle; } ;;
+  esac
+  note=""
+  (( dirty == 0 )) || note+="dirty $dirty; "
+  rounds=$(jq -r '.rounds // 0' <<<"$p"); (( rounds == 0 )) || note+="review rounds $rounds; "
+  review=$(jq -r '.review // ""' <<<"$p"); [[ -z "$review" ]] || note+="$review"
+  row "$name" "$state" "$(jq -r .pr <<<"$p")" "$last" "${note%; }"
+done < <(jq -c 'select(.name)' <<<"$agents")
+
+# A worker whose agent quit or crashed leaves its workspace open with no agent.
+live=$(jq -r '.workspace_id' <<<"$agents" | sort -u)
+herdr worktree list --cwd "$repo" | jq -r --arg repo "$repo" \
+  '.result.worktrees[] | select(.open_workspace_id and .path != $repo) | "\(.open_workspace_id) \(.path)"' |
+  while read -r workspace path; do
+    grep -qx "$workspace" <<<"$live" || row "$(basename "$path")" gone - - "workspace $workspace has no agent"
+  done
+
+jq -r 'select(.name | not) | [.agent_status, .pane_id, (.cwd | split("/") | last), (.terminal_title_stripped // "")] | @tsv' <<<"$agents" |
+  while IFS=$'\t' read -r agent pane checkout title; do
+    row "user:$pane" "$agent" - - "$checkout: $title"
+  done

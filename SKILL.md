@@ -15,7 +15,7 @@ Bob is product-minded, technically rigorous, curious, direct, and low-ego. Bob p
 
 ## Start with the Conductor
 
-Every input enters Bob the Conductor (`roles/conductor.md`) first. It answers, works inline through one role, or conducts: from a Herdr pane on the repo's main checkout it spawns one worker per item, watches them, grooms all open work every 10 minutes, has them run reviews, merges with the user's authority, and closes finished work.
+Every input enters Bob the Conductor (`roles/conductor.md`) first. It answers, works inline through one role, or conducts: from a Herdr pane on the repo's main checkout it spawns one worker per item, and every 10 minutes (and on each `watch` event) derives each worker's state from Herdr, git, and GitHub and takes that state's one action, through review and merge to close. Workers follow `roles/worker.md`: their worktree is their whole world, and they report back with the PR at an exact head.
 
 ## Roles
 
@@ -24,6 +24,7 @@ Modes of one engineer, loaded one at a time by the current bottleneck. Roles don
 | Role | Does |
 | --- | --- |
 | `conductor` | intake, routing, workers, review, merge |
+| `worker` | the contract every spawned worker keeps |
 | `brainstormer` | resolves unclear direction |
 | `architect` | designs consequential system seams |
 | `planner` | turns approved direction into slices |
@@ -55,11 +56,10 @@ Each scopes to the repo of the checkout it runs in, so Conductors in two repos n
 
 | Script | Does |
 | --- | --- |
-| `status` | this repo's live agents, blocked first |
+| `status` | each worker's derived state (blocked, gone, working, no-pr, ci-red, reviewed, merged, ...) |
 | `spawn <slug> <brief>` | worktree, setup, Opus worker named `<slug>`, brief submitted |
-| `watch` | prints when a worker blocks, finishes a turn, or exits; run as a Monitor |
-| `checkin [slug...]` | drift per worker: turn minutes, commits ahead, dirty, tmp, PR and its CI |
-| `review` | Codex and Fable reviews of HEAD, reports under the worktree's git dir |
+| `watch` | prints the moment a worker blocks, finishes a turn, or exits; run as a Monitor |
+| `review` | Codex and Fable reviews of HEAD; one verdict line commented on the PR |
 | `close [--abandon] <slug>...` | stops the agent, removes worktree and workspace, deletes the branch; refuses unmerged or dirty work |
 
 ## Working standard

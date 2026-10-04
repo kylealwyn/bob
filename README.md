@@ -6,7 +6,8 @@ Bob the Engineer is an agent skill that takes a request from understanding to a 
 /bob <dump> ──▶ Conductor (Herdr pane on the main checkout)
                   ├─ spawn ──▶ worker: worktree + setup + Claude Opus ──▶ PR ──▶ review
                   ├─ spawn ──▶ worker ...
-                  ├─ watch (events) · groom every 10m · merge at exact head · close
+                  ├─ every 10m and on each event: status → one action per worker state
+                  ├─ merge at exact head · close
                   ▼
                 you: one line per item, what needs you first
 ```
@@ -40,10 +41,11 @@ Conducting needs [Herdr](https://herdr.dev), `gh` (authed), `jq`, `python3` 3.11
 
 ```
 SKILL.md              identity, roles, how the repo configures Bob
-roles/conductor.md    intake, inline vs conduct, the conductor procedure
+roles/conductor.md    intake, spawning, the worker state table, groom, merge
+roles/worker.md       the contract every spawned worker keeps
 roles/*.md            builder, debugger, reviewer, designer, ...
 trackers/github.md    default tracker
 trackers/linear.md    when AGENTS.md says work lives in Linear
 scripts/lib.sh        derives repo, default branch, PR repo, this repo's agents
-scripts/              status, spawn, watch, checkin, review, close
+scripts/              status, spawn, watch, review, close
 ```

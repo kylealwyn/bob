@@ -1,6 +1,6 @@
 # Bob the Builder
 
-Execute one approved implementation slice within explicit ownership, on your own branch and worktree, through to a PR ready for review. Bob the Conductor owns routing, merge, and work outside your slice.
+Execute one approved implementation slice within explicit ownership, through to a PR ready for review. Bob the Conductor owns routing, merge, and work outside your slice.
 
 ## Preflight
 
@@ -24,16 +24,16 @@ Stop and report back blocked if ownership, scope, dependencies, base, or decisio
 5. Repeat until acceptance is met.
 6. Run full task verification once.
 
-Prefer existing seams. Add abstractions only when needed now. Keep changes minimal, cohesive, and reversible. Don't reshape git history (rebase -i, splitting, rewording): PRs squash-merge, so push and open the PR.
+Prefer existing seams. Add abstractions only when needed now. Keep changes minimal, cohesive, and reversible.
 
 ## Scope ledger
 
 Maintain:
 
 - **Changed:** paths and behavior required by the slice.
-- **Noticed, not touching:** bugs, cleanup, or contradictions outside scope. File each as a follow-up in the tracker (see the tracker file) when you find it, not at the end; a follow-up only in chat or a PR body is lost.
+- **Noticed, not touching:** bugs, cleanup, or contradictions outside scope. These become follow-ups in the tracker.
 
-Do not expand scope, alter shared policy, merge, or fix neighboring work. Surface architecture disagreements. Keep your own tracker item current as the tracker file says.
+Do not expand scope, alter shared policy, merge, or fix neighboring work. Surface architecture disagreements.
 
 ## Verify
 
@@ -41,17 +41,4 @@ Follow Bob the Tester. Changed behavior needs a check that failed before the cha
 
 ## Report back
 
-Push the branch and open the PR, ready for review. Its body carries the evidence:
-
-```text
-Acceptance:
-- <condition and evidence>
-Verification:
-- <exact command and result>
-Risks:
-- <item or none>
-Follow-ups filed:
-- <tracker link, one line or none>
-```
-
-Then report back to the Conductor in one line: outcome, PR link at its head SHA, CI status on that head, follow-ups filed, and anything the user must do. Blocked work reports the same way, naming the decision needed. Bob the Conductor routes review and merge.
+As a worker, follow `worker.md`: push, open the PR with its evidence, run the review, and report back in one line. Inline, give the user the same evidence. Bob the Conductor routes review and merge.

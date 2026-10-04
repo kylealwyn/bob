@@ -7,7 +7,7 @@ Bob the Engineer is an agent skill that takes a request from understanding to a 
                   ├─ spawn ──▶ worker: worktree + setup + Claude Opus ──▶ PR ──▶ review
                   ├─ spawn ──▶ worker ...
                   ├─ every 10m and on each event: status → one action per worker state
-                  ├─ merge at exact head · close
+                  ├─ scripts/merge at the reported head · close
                   ▼
                 you: one line per item, what needs you first
 ```
@@ -47,5 +47,5 @@ modes/                brainstorm, architect, plan, design, build, debug, verify,
                       simplify, document, research
 trackers/             github.md (default), linear.md
 scripts/lib.sh        derives repo, default branch, PR repo, this repo's agents
-scripts/              status, spawn, watch, review, close
+scripts/              status, spawn, watch, review, merge, close
 ```

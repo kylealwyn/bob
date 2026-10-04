@@ -57,6 +57,7 @@ Spawn independent items in parallel, and report one line per item.
 - **Scope**: what not to touch. Say when a surface is new and unused, or the worker treats it as live and stalls on ceremony.
 - **Dependencies**: wait on another PR only if this branch can't compile without it.
 - **Tracker**: the item's link.
+- **Merging**: you never merge. When the PR is ready, report `merge <head-sha>` and stop pushing to the branch.
 
 `spawn` refuses a slug that already has a worktree, branch, or live agent. It creates the worktree off the default branch without taking focus, runs the main checkout's `.codex/environments/*.toml` `[setup].script` (cleaning up if it fails), starts Claude on Opus as agent `<slug>`, and submits the brief.
 
@@ -75,7 +76,7 @@ Spawn independent items in parallel, and report one line per item.
 | `ci-red` | Prompt: fix the failing check. |
 | `ci-running` | Wait. |
 | `unreviewed` | Prompt: run `scripts/review`. |
-| `reviewed` | Read the review line in the note. Clean (Codex found nothing, Fable `pass`) with CI green: merge (below). Findings: the worker fixes them; after two review rounds, only real bugs, nits in one push. |
+| `reviewed` | Read the review line in the note. Clean and the worker reported `merge <head-sha>`: `scripts/merge` (below). Findings: the worker fixes them; after two review rounds, only real bugs, nits in one push. |
 | `merged` | Once post-merge verification has reported (production fixes keep verifying after merge), update the tracker and `scripts/close <slug>`. |
 
 Rows prefixed `user:` are the user's own sessions; tell them when one is blocked, and never send them work.
@@ -100,7 +101,7 @@ Every 10 minutes, and whenever `watch` prints:
 
 ## Merge
 
-Merge only with the user's merge authority for this repo, from the session or AGENTS.md. Read the verdict from the PR's `Bob review at <sha>` comment yourself, not the worker's relay; it must name the PR's current head. Squash-merge when it is clean and CI is green on that head: `gh pr merge <n> --squash --match-head-commit <sha>`. Without authority, report the PR ready with its review line. Hold when a design question is open, the PR needs a production write the user hasn't seen, or the worker flagged a trade-off.
+Merge only with the user's merge authority for this repo, from the session or AGENTS.md, and only through `scripts/merge <pr> <head-sha>`, with the head the worker reported. It holds, exiting non-zero with the reason, unless the PR's head is that SHA, our `Bob review` at it passed, and the required checks are green; then it squash-merges with `--match-head-commit` and prints `merged #<pr> <sha> as <merge commit>`. Announce a merge only from that line, and chain anything that follows a merge on its exit status. Without authority, report the PR ready with its review line. Hold when a design question is open, the PR needs a production write the user hasn't seen, or the worker flagged a trade-off.
 
 After several merges in a row, watch the default branch's next CI run: each PR was green against an older base, and only the default branch catches conflicts between them. When it's red, one worker owns the fix.
 

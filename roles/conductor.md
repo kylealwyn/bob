@@ -72,6 +72,7 @@ Spawn independent items in parallel, and report one line per item.
 | `working` | Leave it, unless its last commit is over 30 minutes old (or it has none after two grooms): read the pane and pull it back with the next concrete step and a 15-minute budget. The usual cause is reshaping git history; squash-merge flattens it, so push and open the PR. |
 | `idle` | Read the tail. If it reported back, act on the report; otherwise prompt the next step. |
 | `no-pr` | Prompt: push and open the PR. |
+| `unpushed` | Prompt: push; the PR's checks and review are for an older head. |
 | `ci-red` | Prompt: fix the failing check. |
 | `ci-running` | Wait. |
 | `unreviewed` | Prompt: run `scripts/review`. |

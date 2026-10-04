@@ -33,6 +33,7 @@ for slug in "$@"; do
 
   # A worker's workspace exists only under Herdr; the Conductor's fast path has none.
   # With no Herdr server running there is no live workspace to stop.
+  [[ "${HERDR_ENV:-}" != 1 ]] || command -v herdr >/dev/null || die "inside Herdr but the herdr CLI isn't on PATH"
   if command -v herdr >/dev/null; then
     list=$(herdr worktree list --cwd "$repo" 2>&1 || true)
     code=$(jq -r '.error.code // empty' <<<"$list" 2>/dev/null || echo unparsed)

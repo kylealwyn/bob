@@ -10,8 +10,9 @@
 #   gone        workspace open, no agent
 #   working     agent mid-turn
 #   merged      a merged PR's head is HEAD
+#   unpushed    open PR whose head isn't HEAD (local commits not pushed)
 #   ci-red      open PR, a check failed or was cancelled
-#   ci-running  open PR, checks pending
+#   ci-running  open PR, checks pending or stale
 #   reviewed    open PR, CI green or absent, our `Bob review` comment at HEAD
 #   unreviewed  open PR, CI green or absent, no review at HEAD
 #   no-pr       commits ahead of the default branch, no PR
@@ -32,7 +33,7 @@ pr_jq='
   def ci: [.statusCheckRollup[] |
       (.conclusion // "") as $c | (.state // "") as $s |
       if ([$c, $s] | any(IN("FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE", "ERROR"))) then "fail"
-      elif ((.status // "COMPLETED") != "COMPLETED") or ($s | IN("PENDING", "EXPECTED")) then "pending"
+      elif ((.status // "COMPLETED") != "COMPLETED") or ($s | IN("PENDING", "EXPECTED")) or $c == "STALE" then "pending"
       else "pass" end]
     | if index("fail") then "fail" elif index("pending") then "pending" else "pass" end;
   (map(select(.state == "OPEN"))[0]) as $open
@@ -43,7 +44,8 @@ pr_jq='
       | ($reviews | map(select(.body | contains($head))) | last | .body // "") as $review
       | ($open | ci) as $ci
       | {pr: "#\($open.number)", rounds: ($reviews | length), review: ($review | sub("^Bob review[^:]*: "; "")),
-         state: (if $ci == "fail" then "ci-red" elif $ci == "pending" then "ci-running"
+         state: (if $open.headRefOid != $head then "unpushed"
+                 elif $ci == "fail" then "ci-red" elif $ci == "pending" then "ci-running"
                  elif $review != "" then "reviewed" else "unreviewed" end)}
     else {pr: "", state: ""} end'
 
@@ -79,7 +81,8 @@ live=$(jq -r '.workspace_id' <<<"$agents" | sort -u)
 herdr worktree list --cwd "$repo" | jq -r --arg repo "$repo" \
   '.result.worktrees[] | select(.open_workspace_id and .path != $repo) | "\(.open_workspace_id) \(.path)"' |
   while read -r workspace path; do
-    grep -qx "$workspace" <<<"$live" || row "$(basename "$path")" gone - - "workspace $workspace has no agent"
+    grep -qx "$workspace" <<<"$live" ||
+      row "$(git -C "$path" branch --show-current)" gone - - "workspace $workspace has no agent; pane: herdr pane list --workspace $workspace"
   done
 
 jq -r 'select(.name | not) | [.agent_status, .pane_id, (.cwd | split("/") | last), (.terminal_title_stripped // "")] | @tsv' <<<"$agents" |

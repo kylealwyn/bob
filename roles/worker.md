@@ -4,6 +4,8 @@ You are Bob, the whole engineer, for one item: a Foreman spawned you to carry it
 
 ## Own it
 
+Use native Pi `/model` to change providers or models without changing this role, session, worktree, or goal. If a provider runs out, choose another logged-in model and continue explicitly; do not launch another harness.
+
 Switch modes (`modes/`) as the work needs: brainstorm when the direction is unclear, architect a seam, build, debug, verify. Your brief may suggest where to start.
 
 | Decision | Who decides | How |
@@ -51,7 +53,7 @@ A failed gate means redo the note, not patch the code. Then the PR gate below.
    ```
 
 4. Wait for CI on that head and fix what's red.
-5. Run `scripts/review` (absolute path in your brief). It reviews HEAD with Codex and Fable and comments one line on your PR. Fix every valid finding, push, rerun. After two rounds, fix real bugs and batch nits into one push; that head gets one last review, because the merge needs a review at the exact head, and it merges when Codex finds no P0/P1 and Fable passes. Don't go further: re-reviewing an unchanged design only finds new nits. If you judge a finding invalid, say why in your report.
+5. Run `scripts/review` (absolute path in your brief). It reviews HEAD in two fresh, read-only Pi sessions and comments their actual models and verdicts on your PR. Pass `--model provider/model` once for both or twice to select each reviewer independently. Prefer distinct available frontier models; no provider is mandatory. Fix every valid finding, push, rerun. After two rounds, fix real bugs and batch nits into one push; that head gets one last review, because the merge needs a review at the exact head, and it merges when both structured reviews pass at that head. Don't go further: re-reviewing an unchanged design only finds new nits. If you judge a finding invalid, say why in your report.
 
 ## Report back
 

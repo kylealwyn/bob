@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Start a Pi Bob Foreman. Native Pi options follow, e.g. --model or --session.
+set -euo pipefail
+bob=$(cd "$(dirname "$0")/.." && pwd)
+provider="${PI_PROVIDER:-}"
+resume=false
+explicit_model=false
+args=("$@")
+for ((i=0; i<${#args[@]}; i++)); do
+  case "${args[i]}" in
+    --model) explicit_model=true ;;
+    --provider) provider=${args[i+1]:?--provider needs a provider} ;;
+    --session|--session-id|--fork|--resume|-r|--continue|-c) resume=true ;;
+  esac
+done
+pi_args=(--extension "$bob/extensions/bob.ts" --skill "$bob/SKILL.md" --bob-role foreman)
+if ! $resume && ! $explicit_model; then pi_args+=(--model "$("$bob/scripts/model" foreman "$provider")"); fi
+exec pi "${pi_args[@]}" "$@"

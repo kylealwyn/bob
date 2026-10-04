@@ -21,7 +21,8 @@ want="${2:?usage: merge <pr> <sha>}"
 hold() {
   echo "hold #$n: $*" >&2
   [[ -z "${gh:-}" || "${state:-}" != OPEN ]] ||
-    gh pr comment "$n" --repo "$gh" --body "Bob merge hold at ${head:-?}: $*" >/dev/null 2>&1 || true
+    gh pr comment "$n" --repo "$gh" --body "Bob merge hold at ${head:-?}: $*" >/dev/null 2>&1 ||
+    echo "hold #$n: not recorded on the PR, so retro won't count it" >&2
   exit 1
 }
 

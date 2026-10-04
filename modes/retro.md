@@ -6,7 +6,7 @@ Learn from the process the way you would debug a system: from evidence, to the c
 
 The Foreman runs one for every item before closing it.
 
-1. Gather the facts: `scripts/retro <pr>` prints opened-to-merged time, commits, every Bob review line, every merge hold, and the failed CI runs on its branch. Add what the record doesn't show: the worker's report (it names what cost it the most), the user's corrections in the session, and any blocked forms.
+1. Gather the facts: `scripts/retro <pr>` prints opened-to-merged time, commits, every Bob review and merge hold with its time, and the CI runs on its branch while it was open: failed, cancelled, and rerun. Add what the record doesn't show: the worker's report (it names what cost it the most), the user's corrections in the session, and any blocked forms.
 2. Find the costliest friction. Usual suspects: review rounds past two, a hold, red CI, a gate that failed, a question the brief should have answered, a worker that drifted, a correction from the user, and a problem found after merge that an earlier gate should have caught.
 3. Understand it before fixing it. Reproduce or trace it to its cause, and name the earliest gate that should have caught it. A finding without evidence (the PR, the hold line, the failing command, the user's words) doesn't count.
 4. Fix the class at the seam that owns it: a script check when the rule can be enforced, a role or mode rule when it's judgment, a tracker or harness file when it's that system's behavior, the repo's AGENTS.md when it's project-specific. Ship it as its own PR through the usual gates. One lesson, not a list; "nothing to change" is a fine answer.

@@ -26,7 +26,7 @@ Two loops sit on top of everything below. **Fit**: every piece of work is judged
 | learning from finished work | retro |
 | source rationale or API docs | document |
 
-**Fast path** for a config-sized change the Foreman owns (a few lines of settings, a doc fix). It is the one time the Foreman implements and reviews in its own context: `git fetch origin`, `git worktree add <path outside the main checkout> -b <slug> origin/<default branch>`; no workspace, setup, or worker. Edit, commit, `git push -u origin <slug>`, open the PR, run `scripts/review` from that worktree in the background, merge, then `scripts/close <slug>`.
+**Fast path** for a config-sized change the Foreman owns (a few lines of settings, a doc fix). It is the one time the Foreman implements and reviews in its own context: `git fetch origin`, `git worktree add <path outside the main checkout> -b <slug> origin/<default branch>`; no workspace, setup, or worker. Edit, commit, `git push -u origin <slug>`, open the PR, run `scripts/review` from that worktree in the background, merge, then `scripts/close <slug>`. It has no tracker item, so its retro, if it has one worth writing, is a comment on the PR.
 
 **Subagents** inside one session (the harness's own subagent or background task, not a worker) get a brief too, since they inherit none of the conversation: the current state (branch, dirty files and who owns them, what's running and where, what's done), the exact outcome and how to verify it, the files it owns, and what not to redo, restart, or touch. Give parallel subagents non-overlapping files. Don't fold a new request into a running subagent; start another. On a resume send only the delta. Reconcile their results and the tree yourself before reporting.
 

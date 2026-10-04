@@ -3,7 +3,8 @@
 # gathered from the code host, never judged here (modes/retro.md does that).
 #
 #   retro <pr>          one item: opened to merged, commits, every Bob review
-#                       line, every merge hold, and failed CI runs on its branch
+#                       and merge hold with its time, and the CI runs on its
+#                       branch while it was open: failed, cancelled, rerun
 #   retro --since <d>   every PR merged or closed since <d>, one line each,
 #                       costliest first, for the periodic system retro
 #
@@ -23,15 +24,20 @@ facts() {
     "#\(.number) \(.title)",
     "  \(.state | ascii_downcase), opened to \(if .mergedAt then "merged" else "closed" end): \(hours(.createdAt; .mergedAt // .closedAt)), \(.commits | length) commits, \(.changedFiles) files",
     ([.comments[] | select(.author.login == $me and (.body | startswith("Bob review")))] | "  reviews: \(length)"),
-    ([.comments[] | select(.author.login == $me and (.body | startswith("Bob review")))][] | "    \(.body | sub("^Bob "; ""))"),
+    ([.comments[] | select(.author.login == $me and (.body | startswith("Bob review")))][] | "    \(.createdAt[5:16] | sub("T"; " ")) \(.body | sub("^Bob "; ""))"),
     ([.comments[] | select(.author.login == $me and (.body | startswith("Bob merge hold")))] | "  merge holds: \(length)"),
-    ([.comments[] | select(.author.login == $me and (.body | startswith("Bob merge hold")))][] | "    \(.body | sub("^Bob merge "; ""))")
+    ([.comments[] | select(.author.login == $me and (.body | startswith("Bob merge hold")))][] | "    \(.createdAt[5:16] | sub("T"; " ")) \(.body | sub("^Bob merge "; ""))")
   ' <<<"$pr"
-  # Only runs on this PR's own commits: a reused branch name carries older runs.
-  gh api --paginate "repos/$gh/actions/runs?branch=$branch&per_page=100" --jq '.workflow_runs[] | {sha: .head_sha, name, conclusion}' |
-    jq -rs --argjson shas "$(jq -c '[.commits[].oid]' <<<"$pr")" '
-      [.[] | select(.sha as $s | $shas | index($s)) | select(.conclusion | IN("failure", "timed_out", "cancelled"))]
-      | "  failed CI runs: \(length)" + (if length > 0 then " (" + (group_by(.name) | map("\(.[0].name) x\(length)") | join(", ")) + ")" else "" end)'
+  # Runs on the branch while this PR was open: that keeps heads a rebase
+  # replaced, and leaves out older PRs that reused the branch name. A run with
+  # more than one attempt was retried, so an earlier attempt failed or flaked;
+  # the runs API reports only its latest conclusion.
+  gh api --paginate "repos/$gh/actions/runs?branch=$branch&per_page=100" \
+    --jq '.workflow_runs[] | {name, conclusion, attempt: .run_attempt, at: .created_at}' |
+    jq -rs --arg from "$(jq -r .createdAt <<<"$pr")" --arg to "$(jq -r '.mergedAt // .closedAt // "9999"' <<<"$pr")" '
+      def tally(f): [.[] | select(f)] | "\(length)" + (if length > 0 then " (" + (group_by(.name) | map("\(.[0].name) x\(length)") | join(", ")) + ")" else "" end);
+      [.[] | select(.at >= $from and .at <= $to)]
+      | "  CI runs: failed \(tally(.conclusion | IN("failure", "timed_out"))), cancelled \(tally(.conclusion == "cancelled")), rerun \(tally(.attempt > 1))"'
 }
 
 if [[ "${1:-}" == --since ]]; then

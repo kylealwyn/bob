@@ -1,8 +1,6 @@
 ---
 name: bob
-description: "Engineers every request from understanding to a verified, merged PR. Works inline in focused modes, or as the Foreman dispatches workers: in Herdr, each item gets its own worktree, brief, tracker item, and PR reviewed by Codex and Fable. Use when the user says /bob, dumps a list of tasks to farm out, or asks what their workers are doing."
-argument-hint: <request or task dump>
-user-invocable: true
+description: "Engineers every request from understanding to a verified, merged PR. Works inline in focused modes, or as the Foreman dispatches workers: in Herdr, each item gets its own worktree, brief, tracker item, and PR independently reviewed in Pi. Use when the user says /bob, dumps a list of tasks to farm out, or asks what their workers are doing."
 ---
 
 # Bob the Engineer
@@ -49,9 +47,9 @@ No config file. Everything comes from the checkout the Foreman runs in:
 | repo, default branch, PR repo | git common dir, `origin/HEAD`, `gh repo view` (`scripts/lib.sh`) |
 | worktree setup | `[setup].script` of the repo's one `.codex/environments/*.toml`; none if absent |
 | tracker | AGENTS.md: `trackers/linear.md` if work lives in Linear, else `trackers/github.md` |
-| harness | the agent CLI a session runs in: `harnesses/claude-code.md` (Foreman and workers), `harnesses/codex.md` (workers) |
+| harness | Pi for Foreman, workers, and reviews: `harnesses/pi.md`; this package supplies the extension and skill |
 | verification, preview lane, release or apply pipeline, merge authority | AGENTS.md or the session |
-| models | workers Claude Opus (or Codex with `spawn --kind codex`); reviews `codex review` and `claude -p --model claude-fable-5-1` |
+| models | Pi login and current session model (inherited by workers/reviews); select at launch with `--model`, change any session with native `/model`; roles never pin a provider |
 
 ## Scripts
 
@@ -60,9 +58,10 @@ Each scopes to the repo of the checkout it runs in, so Foremen in two repos neve
 | Script | Does |
 | --- | --- |
 | `status` | each worker's derived state (blocked, gone, working, no-pr, ci-red, reviewed, merged, ...) |
-| `spawn [--kind codex] <slug> <brief>` | worktree, setup, a worker named `<slug>`, brief submitted |
-| `watch` | prints the moment a worker blocks, finishes a turn, or exits; run as a Monitor |
-| `review [--note <file>]` | Codex and Fable reviews of HEAD, one verdict line on the PR; `--note` reviews a design note (gates 1 and 2) |
+| `start [Pi options]` | a Pi Foreman on the current checkout |
+| `spawn [--model provider/model] <slug> <brief>` | worktree, setup, a worker named `<slug>`, brief submitted |
+| `watch` | prints the moment a worker blocks, finishes a turn, or exits; owned by the Pi extension |
+| `review [--note <file>] [--model provider/model] [--model provider/model]` | two fresh Pi reviews of HEAD, actual models and one structured verdict line on the PR; `--note` reviews a design note (gates 1 and 2) |
 | `merge <pr> <head-sha>` | squash-merges at exactly the reviewed head, or holds with a non-zero exit and records the hold on the PR |
 | `retro <pr>` / `retro --since <date>` | the facts a retro reasons over: time, commits, reviews, holds, failed CI |
 | `close [--abandon] <slug>...` | stops the agent, removes worktree and workspace, deletes the branch; refuses unmerged or dirty work |

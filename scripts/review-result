@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+"""Validate one Pi review event stream. Text-only or contradictory reviews never pass."""
+import json
+import re
+import sys
+
+
+def result(events):
+    reports = [e["result"]["details"] for e in events
+               if e.get("type") == "tool_execution_end" and e.get("toolName") == "review_result"
+               and not e.get("isError") and not e.get("result", {}).get("isError")]
+    if len(reports) != 1:
+        raise ValueError("expected exactly one successful review_result")
+    report = reports[0]
+    if not isinstance(report, dict) or report.get("verdict") not in ("pass", "changes_requested"):
+        raise ValueError("invalid review verdict")
+    if not isinstance(report.get("model"), str) or not re.fullmatch(r"[A-Za-z0-9._:/-]+", report["model"]):
+        raise ValueError("missing or invalid actual model")
+    if report.get("tools") != sorted(["read", "grep", "find", "ls", "review_result"]):
+        raise ValueError("review did not run with the read-only tool set")
+    findings = report.get("findings")
+    if not isinstance(findings, list):
+        raise ValueError("missing findings array")
+    for finding in findings:
+        if not isinstance(finding, dict) or finding.get("priority") not in ("P0", "P1", "P2", "P3") or not isinstance(finding.get("finding"), str) or not finding["finding"].strip():
+            raise ValueError("invalid finding")
+    if report["verdict"] == "pass" and any(f["priority"] in ("P0", "P1") for f in findings):
+        raise ValueError("review with P0/P1 findings cannot pass")
+    return report
+
+
+if __name__ == "__main__":
+    try:
+        with open(sys.argv[1]) as stream:
+            events = [json.loads(line) for line in stream if line.strip()]
+        print(json.dumps(result(events)))
+    except (ValueError, KeyError, TypeError, IndexError, OSError) as error:
+        sys.exit(f"review-result: {error}")

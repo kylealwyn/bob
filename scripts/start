@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Start a Pi Bob Foreman. Native Pi options follow, e.g. --model or --session.
+set -euo pipefail
+bob=$(cd "$(dirname "$0")/.." && pwd)
+exec pi --extension "$bob/extensions/bob.ts" --skill "$bob/SKILL.md" --bob-role foreman "$@"

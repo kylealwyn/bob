@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """watch — print a line the moment a worker in this repo needs the Foreman.
 
-Run it as a Monitor; each line is an event: `<event> <pane> <worker> <title>`.
+The Bob Pi extension owns this process; each line is an event:
+`<event> <pane> <worker> <title>`.
 
   blocked   the agent shows an approval or question form
   done      the agent finished a turn (not necessarily the task)

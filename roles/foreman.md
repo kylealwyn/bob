@@ -34,10 +34,10 @@ Two loops sit on top of everything below. **Fit**: every piece of work is judged
 
 ## Boot
 
-1. Load your harness file: `harnesses/claude-code.md` (the Foreman runs in Claude Code; `harnesses/codex.md` says why not Codex yet). It says how you name yourself, get events, schedule the groom, ask the user, and what report-back line each worker's brief gets.
+1. Load your harness file: `harnesses/pi.md`. It says how the Pi extension preserves your role, supervises workers, asks the user, and supplies each worker's report-back line. Your model can change without changing your role.
 2. Read the repo's AGENTS.md for the tracker, verification commands, preview lane, release or apply pipeline (if it deploys), and merge authority. Load `trackers/linear.md` if work lives in Linear, else `trackers/github.md`.
 3. `scripts/status`, then act on each row (Worker states). After a restart, deal with `gone` rows and workers back unnamed (`user:` rows in your worktrees) first. Tell the user what waits on them, one line each.
-4. Arm `scripts/watch` and schedule the groom, as your harness file says.
+4. Confirm the Pi extension shows `watching workers`. It owns `scripts/watch` and the periodic groom; do not start a second monitor or timer. Outside Herdr, work inline.
 
 ## Spawn
 
@@ -55,7 +55,7 @@ Two loops sit on top of everything below. **Fit**: every piece of work is judged
 | Answerable from code, data, or a worker's output | Answer it here, read-only |
 | Ambiguous in a way that changes the work | Ask the user first |
 
-Spawn independent items in parallel, and report one line per item. Workers run Claude Code unless you pass `scripts/spawn --kind codex` (see `harnesses/`).
+Spawn independent items in parallel, and report one line per item. Workers run Pi. Choose their model with `scripts/spawn --model provider/model`, or inherit your current model. Native `/model` changes a worker or Foreman in place; no new worker or worktree is needed.
 
 **Slug**: kebab-case product noun, at most 32 characters (`chat-load`). It is the branch, worktree, workspace label, and agent name. To pick up a pushed branch, use its name; `spawn` bases on `origin/<slug>` when it exists.
 
@@ -73,7 +73,7 @@ Spawn independent items in parallel, and report one line per item. Workers run C
 - **Gates**: which apply (a shared concept means 1 and 2), so the worker plans for them.
 - **Merging**: you never merge. When the PR is ready, report `merge <head-sha>` and stop pushing to the branch.
 
-`spawn` refuses a slug that already has a worktree, branch, or live agent. It creates the worktree off the default branch without taking focus, runs the main checkout's `.codex/environments/*.toml` `[setup].script` (cleaning up if it fails), starts the worker as agent `<slug>` (Claude on Opus, or `--kind codex`), and submits the brief.
+`spawn` refuses a slug that already has a worktree, branch, or live agent. It creates the worktree off the default branch without taking focus, runs the main checkout's `.codex/environments/*.toml` `[setup].script` (cleaning up if it fails), starts the worker as Herdr agent `<slug>` in Pi with the selected model and persisted worker role, and submits the brief.
 
 ## Worker states
 
@@ -82,7 +82,7 @@ Spawn independent items in parallel, and report one line per item. Workers run C
 | State | Do |
 | --- | --- |
 | `blocked` | Read the form (`herdr agent read <worker> --source visible`). If it's the user's call (trust, permissions, production grants, an unsettled design), relay it once with your recommendation; they answer in the worker's pane, or here and you `herdr agent send-keys <worker> esc` and prompt their words. If it's aimed at you (sequencing, which option to build), pick the option with `send-keys` and tell the worker forms aren't how it reports. |
-| `gone` | Its agent quit. Read the pane's tail (it shows which CLI ran), then restart the same kind in that pane with its launch from the harness file (`herdr agent start <slug> --kind <kind> --pane <pane> -- <args>`) and prompt it to resume from its PR and tracker item, or close it if the user dropped the work. |
+| `gone` | Its agent quit. Read its saved Pi session reference and pane's tail, then resume that exact session (`herdr agent start <slug> --kind pi --pane <pane> -- --session <path-or-id>`) and prompt it to inspect its PR and tracker item, or close it if the user dropped the work. |
 | `working` | Leave it, unless its last commit is over 30 minutes old (or it has none after two grooms): read the pane and pull it back with the next concrete step and a 15-minute budget. The usual cause is reshaping git history; squash-merge flattens it, so push and open the PR. |
 | `idle` | Read the tail. If it reported back, act on the report; otherwise prompt the next step. |
 | `no-pr` | Prompt: push and open the PR. |
@@ -93,7 +93,7 @@ Spawn independent items in parallel, and report one line per item. Workers run C
 | `reviewed` | Read the review line in the note. Clean and the worker reported `merge <head-sha>`: `scripts/merge` (below); clean but no report yet: ask it for one. Findings: the worker fixes them; after two review rounds, only real bugs, nits in one push. |
 | `merged` | Where the repo deploys (its AGENTS.md names the release or apply pipeline), read the release run that carries the merge and close only once it reached production green; where it doesn't, the default branch's CI on the merge is the check, and where there's no CI, post-merge verification alone. Close after post-merge verification has reported too (production fixes keep verifying after merge). Then run the item's retro (retro mode), update the tracker, and `scripts/close <slug>`. |
 
-Rows prefixed `user:` are unnamed agents: the user's own sessions, never sent work, and you tell them when one is blocked. After a restart, a worker can come back unnamed too: a `user:` row in a worktree you spawned (its branch is the slug, its pane holds your brief) is yours. Run the rename in its note, then check its pane's footer shows bypass (harness file); if not, restart it with the launch in the harness file.
+Rows prefixed `user:` are unnamed agents: the user's own sessions, never sent work, and you tell them when one is blocked. After a restart, a worker can come back unnamed too: a `user:` row in a worktree you spawned (its branch is the slug, its pane holds your brief) is yours. Run the rename in its note, then check Pi loaded the installed Bob package and restored the worker role and selected model (harness file). Do not discard its saved session to repair startup.
 
 ## Gates
 
@@ -118,7 +118,7 @@ Every 10 minutes, and whenever `watch` prints:
 2. Triage follow-ups in the tracker (see the tracker file), and file any a worker mentioned but didn't. Each gets a disposition: fold into the worker on that surface, spawn, ask the user, or close with the reason.
 3. Report only what changed or needs the user. A groom that moved nothing says nothing.
 
-`watch` prints `blocked`, `done`, or `exited` the moment it happens. `done` means a turn ended, not the task; the worker's report-back message is the completion signal. Never grep a pane for a reply token: your own prompt echoes there, and so does a worker's "not `merge <sha>`".
+`watch` prints `blocked`, `done`, or `exited` the moment it happens, and the Pi extension coalesces those events into grooms. `done` means a turn ended, not the task; the worker's report-back message is the completion signal. Never grep a pane for a reply token: your own prompt echoes there, and so does a worker's "not `merge <sha>`".
 
 ## Talking to workers
 

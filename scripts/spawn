@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# spawn [--kind claude|codex] <slug> <brief-file>
+# spawn [--model provider/model] <slug> <brief-file>
 #
 # Opens a fresh worktree of the current repo as a Herdr workspace without taking
 # focus, runs the repo's worktree setup, starts a worker in its root pane under
-# the agent name <slug> (Claude on Opus by default; harnesses/ has each kind's
-# launch), and submits the brief as the first message. Prints one JSON line describing the new workspace.
+# the agent name <slug> in Pi, and submits the brief as the first message.
+# The model inherits the caller's Pi model, or Pi's configured startup model.
+# Prints one JSON line describing the new workspace.
 #
 # The base is origin/<slug> when that branch exists on origin (picking up a
 # pushed branch or PR), otherwise the default branch, after a pruning fetch.
@@ -16,15 +17,15 @@ set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 require_herdr
 
-kind=claude
-[[ "${1:-}" == --kind ]] && { kind="${2:?usage: spawn [--kind claude|codex] <slug> <brief-file>}"; shift 2; }
-case "$kind" in
-  claude) agent_args=(--dangerously-skip-permissions --model opus) ;;
-  codex) agent_args=(--dangerously-bypass-approvals-and-sandbox) ;;
-  *) die "unknown kind $kind; see harnesses/" ;;
-esac
-slug="${1:?usage: spawn [--kind claude|codex] <slug> <brief-file>}"
-brief_file="${2:?usage: spawn [--kind claude|codex] <slug> <brief-file>}"
+bob=$(cd "$(dirname "$0")/.." && pwd)
+model=""
+[[ -z "${PI_PROVIDER:-}" || -z "${PI_MODEL:-}" ]] || model="$PI_PROVIDER/$PI_MODEL"
+[[ "${1:-}" == --model ]] && { model="${2:?usage: spawn [--model provider/model] <slug> <brief-file>}"; shift 2; }
+[[ "${1:-}" != --* ]] || die "unknown option $1; usage: spawn [--model provider/model] <slug> <brief-file>"
+slug="${1:?usage: spawn [--model provider/model] <slug> <brief-file>}"
+brief_file="${2:?usage: spawn [--model provider/model] <slug> <brief-file>}"
+agent_args=(--extension "$bob/extensions/bob.ts" --skill "$bob/SKILL.md" --bob-role worker)
+[[ -z "$model" ]] || agent_args+=(--model "$model")
 
 # The slug is also the Herdr agent name, which has this grammar.
 [[ "$slug" =~ ^[a-z][a-z0-9_-]{0,31}$ ]] || die "slug must match [a-z][a-z0-9_-]{0,31}: $slug"
@@ -74,7 +75,7 @@ if [[ -n "${setup//[[:space:]]/}" ]]; then
   rm -f "$script"
 fi
 
-herdr agent start "$slug" --kind "$kind" --pane "$pane" -- "${agent_args[@]}" >/dev/null
+herdr agent start "$slug" --kind pi --pane "$pane" -- "${agent_args[@]}" >/dev/null
 if ! herdr agent prompt "$slug" "$(cat "$brief_file")" --wait --until working --timeout 60000 >/dev/null; then
   herdr pane read "$pane" --source visible >&2 || true
   die "agent $slug started in $pane ($path) but didn't start working on the brief (screen above); answer what it shows, or close --abandon $slug"
@@ -82,4 +83,4 @@ fi
 
 jq -nc --arg slug "$slug" --arg workspace "$workspace" --arg pane "$pane" --arg path "$path" --arg base "$from" \
   --arg setup "${envs[0]:-none}" \
-  --arg kind "$kind" '{agent: $slug, kind: $kind, workspace: $workspace, pane: $pane, path: $path, base: $base, setup: $setup}'
+  --arg model "$model" '{agent: $slug, kind: "pi", model: (if $model == "" then "Pi default" else $model end), workspace: $workspace, pane: $pane, path: $path, base: $base, setup: $setup}'

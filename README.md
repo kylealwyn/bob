@@ -21,11 +21,11 @@ pi install ~/dev/bob
 herdr integration install pi
 ```
 
-Use Pi's `/login` for provider access, `/model` to select a model, and `/scoped-models` to choose the models Ctrl+P cycles through. Login and model configuration belong to Pi. Bob never copies credentials or hardcodes frontier model IDs.
+Use Pi's `/login` for provider access, `/model` to select a model, and `/scoped-models` to choose the models Ctrl+P cycles through. Login and model configuration belong to Pi. Bob never copies credentials. Provider/role assignments live in `models.json`; set `BOB_MODELS_FILE` to an alternate file with the same schema for machine-local choices and future model generations.
 
 Bob remains a standard `SKILL.md` for agents that read skills. The package also installs its Pi extension, which provides `/bob`, the Foreman's monitoring and groom, persisted session roles, and the question tool. Install the package on every worker machine so a Herdr resume restores Bob without the original launch flags. See [Pi harness](harnesses/pi.md).
 
-Dispatch needs [Herdr](https://herdr.dev), authenticated `gh`, `jq`, `python3` 3.11+, and `pi`. Inline work needs only Pi.
+Dispatch needs [Herdr](https://herdr.dev), authenticated `gh`, `jq`, `python3` 3.11+, and `pi`. Bob’s role-model resolver uses Node.js 24 or later. Inline work needs Pi and Node.js.
 
 ## Adopt in a repo
 
@@ -33,7 +33,9 @@ Dispatch needs [Herdr](https://herdr.dev), authenticated `gh`, `jq`, `python3` 3
 2. In a Herdr pane on the repo's main checkout, start `pi` and run `/bob <request>`. The extension starts supervision. `~/dev/bob/scripts/start` is also a Foreman launcher and accepts native Pi options.
 3. Put project-specific setup, verification, release workflow, tracker rules, and merge authority in AGENTS.md. Setup uses the existing single `.codex/environments/*.toml` `[setup].script`; no file means no setup. GitHub issues are the default tracker.
 
-Choose a model per worker with `scripts/spawn --model provider/model <slug> <brief-file>`. Omit the model to inherit the current calling Pi session's model; outside Pi, use its configured startup model. Run `/model` in any Foreman or worker to switch in place. Stop an active run before switching; then continue explicitly. After a restart, resume the exact session with `pi --session <path-or-id>`.
+Choose a model per worker with `scripts/spawn --model provider/model <slug> <brief-file>`. Omit the model to use the configured worker model for the calling Pi session's provider (OpenAI by default outside Pi). Defaults are OpenAI Astra Foreman / Sol 6.1 workers, and Anthropic Fable 5.1 Foreman / Opus 5.5 workers. `scripts/start --provider anthropic` selects the Anthropic Foreman; `/bob` activates the Foreman model for the current provider. Explicit `--model` and native `/model` override the assignment. Saved sessions retain their chosen model.
+
+Run `/model` in any Foreman or worker to switch in place. Stop an active run before switching; then continue explicitly. After a restart, resume the exact session with `pi --session <path-or-id>`.
 
 Review with `scripts/review`, optionally selecting one or two models with `--model`. Two fresh contexts preserve reviewer independence even when only one provider is available. Reviews record actual model IDs and structured findings; `scripts/merge` still checks the exact head and green CI. Merge authority must come from the user or AGENTS.md.
 

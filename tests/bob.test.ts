@@ -3,6 +3,8 @@ import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { mock, test, beforeEach, afterEach } from "node:test";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { Agent } from "@earendil-works/pi-agent-core";
+import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
 
 class Watcher extends EventEmitter {
   stdout = new PassThrough();
@@ -130,4 +132,69 @@ test("the periodic groom uses the same queue and its timer is removed", () => {
   h.emit("session_shutdown");
   mock.timers.tick(10 * 60 * 1000);
   assert.equal(h.emit("agent_before_settle", { outcome: "completed" }), undefined);
+});
+
+test("an aborted run stays paused when Pi skips before-settle", () => {
+  const h = harness("foreman"); h.emit("session_start");
+  h.setIdle(false); h.emit("agent_start");
+  watchers[0].stdout.write("done w2:p1 task\n");
+  h.emit("agent_end"); h.setIdle(true); h.emit("agent_settled");
+  watchers[0].stdout.write("done w2:p1 task\n");
+  assert.equal(h.messages.length, 0);
+  h.emit("model_select");
+  assert.equal(h.messages.length, 1);
+  h.emit("session_shutdown");
+});
+
+test("abort cancels either question dialog and releases Herdr", async () => {
+  for (const options of [undefined, ["Yes", "No"]]) {
+    const h = harness("worker"); h.emit("session_start");
+    const blocks: boolean[] = [];
+    h.events.on("herdr:blocked", (data) => blocks.push(data.active));
+    const controller = new AbortController();
+    let opened!: () => void;
+    const ready = new Promise<void>((resolve) => { opened = resolve; });
+    const dialog = (_title: string, _choices: unknown, opts: { signal?: AbortSignal }) => new Promise<undefined>((resolve) => {
+      assert.equal(opts.signal, controller.signal);
+      opts.signal!.addEventListener("abort", () => resolve(undefined), { once: true });
+      opened();
+    });
+    h.ctx.ui.select = dialog as any; h.ctx.ui.input = dialog as any;
+    const pending = h.tools.get("ask_question")!.execute("id", { question: "Proceed?", options }, controller.signal, undefined, h.ctx);
+    await ready; controller.abort();
+    assert.equal((await pending).details.answer, null);
+    assert.deepEqual(blocks, [true, false]);
+    h.emit("session_shutdown");
+  }
+});
+
+test("Pi executes a two-question batch one dialog at a time", async () => {
+  const h = harness("worker"); h.emit("session_start");
+  let active = false;
+  const asked: string[] = [];
+  h.ctx.ui.select = async (question) => {
+    assert.equal(active, false, "a second dialog replaced the first");
+    active = true; asked.push(question);
+    await new Promise((resolve) => setImmediate(resolve));
+    active = false;
+    return "Yes";
+  };
+  const tool = h.tools.get("ask_question")!;
+  let requests = 0;
+  const agent = new Agent({
+    initialState: { tools: [{ ...tool, execute: (...args: any[]) => tool.execute(...args, h.ctx) } as any] },
+    streamFn: () => {
+      const stream = createAssistantMessageEventStream();
+      const message: any = { role: "assistant", api: "openai-responses", provider: "openai", model: "fixture", timestamp: Date.now(),
+        usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+        stopReason: requests++ ? "stop" : "toolUse", content: [] };
+      if (message.stopReason === "toolUse") message.content = ["First?", "Second?"].map((question, i) => ({ type: "toolCall", id: String(i), name: "ask_question", arguments: { question, options: ["Yes", "No"] } }));
+      stream.push({ type: "done", reason: message.stopReason, message });
+      return stream;
+    },
+  });
+  await agent.prompt("Ask both questions");
+  assert.deepEqual(asked, ["First?", "Second?"]);
+  assert.equal(agent.state.isStreaming, false);
+  h.emit("session_shutdown");
 });

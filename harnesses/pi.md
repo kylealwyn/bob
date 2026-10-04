@@ -19,7 +19,7 @@ Log in with Pi's `/login`. Pick a frontier model with `/model`, and use `/scoped
 
 ## Worker
 
-`scripts/spawn [--model provider/model] <slug> <brief-file>` starts Herdr kind `pi`, loads Bob, and records the worker role. Omit `--model` to inherit the current calling Pi session's model; outside Pi, use its configured startup model. Different workers and the Foreman may use different models. Change any session with native `/model`; no worktree, task, or agent identity changes.
+`scripts/spawn [--model provider/model] <slug> <brief-file>` starts Herdr kind `pi`, loads Bob, and records the worker role. Omit `--model` to use the configured worker model for the calling Pi session's provider (OpenAI by default outside Pi). Assignments live in `models.json` (or `BOB_MODELS_FILE`): OpenAI Astra Foreman / Sol 6.1 workers, Anthropic Fable 5.1 Foreman / Opus 5.5 workers. Update the IDs there when generations change. `scripts/start --provider anthropic` chooses that provider’s Foreman; explicit `--model` overrides any default. A saved session preserves its selected model. Change any session with native `/model`; no worktree, task, or agent identity changes.
 
 Resume the exact saved session, not just the last session in the directory: `pi --session <path-or-id>`. Herdr's Pi integration reports the session path. A restart keeps role and model from that session; do not start a fresh conversation to switch models. Inspect live git, PR, and tracker state before resuming tool effects whose outcomes may be unknown.
 

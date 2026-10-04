@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Print the configured model for a role and the current (or explicit) provider.
+set -euo pipefail
+bob=$(cd "$(dirname "$0")/.." && pwd)
+exec node "$bob/extensions/models.ts" "$@"

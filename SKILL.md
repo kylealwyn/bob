@@ -49,7 +49,7 @@ No config file. Everything comes from the checkout the Foreman runs in:
 | tracker | AGENTS.md: `trackers/linear.md` if work lives in Linear, else `trackers/github.md` |
 | harness | Pi for Foreman, workers, and reviews: `harnesses/pi.md`; this package supplies the extension and skill |
 | verification, preview lane, release or apply pipeline, merge authority | AGENTS.md or the session |
-| models | Pi login and current session model (inherited by workers/reviews); select at launch with `--model`, change any session with native `/model`; roles never pin a provider |
+| models | Pi login and editable provider/role assignments in `models.json`; workers follow the current provider’s worker default, reviews inherit the caller’s model; explicit `--model` or native `/model` overrides defaults |
 
 ## Scripts
 

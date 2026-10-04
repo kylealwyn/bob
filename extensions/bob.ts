@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { roleModel } from "./models.ts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const groomInterval = 10 * 60 * 1000;
@@ -118,8 +119,11 @@ export default function bob(pi: ExtensionAPI) {
     if (waking) pending = false; // the new groom reads current state for the whole burst
     waking = false;
   });
+  // Abort skips the before-settle boundary. Stay paused unless that boundary
+  // actually confirms completion, including when cancellation happens in a tool.
+  pi.on("agent_end", () => { paused = true; });
   pi.on("agent_before_settle", (event) => {
-    if (event.outcome !== "completed") paused = true;
+    paused = event.outcome !== "completed";
     if (!pending || paused || questions) return;
     pending = false;
     return { entries: [{ type: "custom_message", ...groomMessage() }], continue: true };
@@ -136,6 +140,13 @@ export default function bob(pi: ExtensionAPI) {
   pi.registerCommand("bob", {
     description: "Start Bob as Foreman, or continue this Bob session; /model changes the model",
     handler: async (request, ctx) => {
+      if (!role) {
+        const selected = roleModel("foreman", ctx.model?.provider);
+        const [provider, ...id] = selected.split("/");
+        const model = ctx.modelRegistry.find(provider, id.join("/"));
+        if (!model) throw new Error(`Bob Foreman model ${selected} is unavailable; update models.json or BOB_MODELS_FILE.`);
+        if (!await pi.setModel(model)) throw new Error(`Log in to ${provider} with /login before starting Bob.`);
+      }
       setRole(role ?? "foreman", ctx);
       paused = false;
       pi.sendUserMessage(`Read ${root}SKILL.md and ${root}roles/${role}.md. ${request || "Run Boot and resume the current work."}`, { deliverAs: "followUp" });
@@ -146,16 +157,17 @@ export default function bob(pi: ExtensionAPI) {
     name: "ask_question",
     label: "Ask Kyle",
     description: "Ask the user for a decision. Optional choices always include a free-text answer. Cancellation is not approval.",
+    executionMode: "sequential",
     parameters: Type.Object({ question: Type.String(), options: Type.Optional(Type.Array(Type.String())) }),
-    async execute(_id, params, _signal, _update, ctx) {
+    async execute(_id, params, signal, _update, ctx) {
       if (ctx.mode !== "tui" && ctx.mode !== "rpc") throw new Error("ask_question needs interactive Pi or an RPC UI client.");
       questions++;
       pi.events.emit("herdr:blocked", { active: true, label: params.question });
       try {
         const choices = params.options ?? [];
         const other = "Write an answer";
-        const selected = choices.length ? await ctx.ui.select(params.question, [...choices, other]) : other;
-        const answer = selected === other ? await ctx.ui.input(params.question) : selected;
+        const selected = choices.length ? await ctx.ui.select(params.question, [...choices, other], { signal }) : other;
+        const answer = selected === other ? await ctx.ui.input(params.question, undefined, { signal }) : selected;
         return { content: [{ type: "text", text: answer === undefined ? "The user cancelled; no answer or approval was given." : answer }], details: { answer: answer ?? null } };
       } finally {
         questions--;

@@ -6,12 +6,33 @@ import sys
 
 
 def result(events):
-    reports = [e["result"]["details"] for e in events
+    reports = [e for e in events
                if e.get("type") == "tool_execution_end" and e.get("toolName") == "review_result"
                and not e.get("isError") and not e.get("result", {}).get("isError")]
     if len(reports) != 1:
         raise ValueError("expected exactly one successful review_result")
-    report = reports[0]
+    verdict_event = reports[0]
+    if verdict_event.get("result", {}).get("terminate") is not True:
+        raise ValueError("review result did not terminate")
+    if not events or events[-1].get("type") != "agent_settled":
+        raise ValueError("review did not settle")
+    endings = [e for e in events if e.get("type") == "agent_end"]
+    if not endings or endings[-1].get("willRetry") is not False:
+        raise ValueError("review has no final successful agent end")
+    messages = endings[-1].get("messages", [])
+    assistants = [m for m in messages if m.get("role") == "assistant"]
+    calls = [c for c in assistants[-1].get("content", []) if c.get("type") == "toolCall"] if assistants else []
+    call_id = verdict_event.get("toolCallId")
+    if not call_id or len(calls) != 1 or calls[0].get("name") != "review_result" or calls[0].get("id") != call_id or assistants[-1].get("stopReason") != "toolUse":
+        raise ValueError("review result must be the solitary final assistant action")
+    tail = events[events.index(verdict_event) + 1:]
+    if any(e.get("type") in ("tool_execution_start", "tool_execution_end", "agent_start", "auto_retry_start", "auto_retry_end") or
+           (e.get("type") in ("message_start", "message_update", "message_end") and e.get("message", {}).get("role") == "assistant") for e in tail):
+        raise ValueError("review continued after its verdict")
+    final = messages[-1] if messages else {}
+    if final.get("role") != "toolResult" or final.get("toolCallId") != call_id or final.get("isError") is not False:
+        raise ValueError("review has no successful final result")
+    report = verdict_event["result"]["details"]
     if not isinstance(report, dict) or report.get("verdict") not in ("pass", "changes_requested"):
         raise ValueError("invalid review verdict")
     if not isinstance(report.get("model"), str) or not re.fullmatch(r"[A-Za-z0-9._:/-]+", report["model"]):

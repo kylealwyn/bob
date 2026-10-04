@@ -4,7 +4,7 @@
 # Opens a fresh worktree of the current repo as a Herdr workspace without taking
 # focus, runs the repo's worktree setup, starts a worker in its root pane under
 # the agent name <slug> in Pi, and submits the brief as the first message.
-# The model inherits the caller's Pi model, or Pi's configured startup model.
+# The model uses the worker assignment for the caller's Pi provider.
 # Prints one JSON line describing the new workspace.
 #
 # The base is origin/<slug> when that branch exists on origin (picking up a
@@ -19,9 +19,9 @@ require_herdr
 
 bob=$(cd "$(dirname "$0")/.." && pwd)
 model=""
-[[ -z "${PI_PROVIDER:-}" || -z "${PI_MODEL:-}" ]] || model="$PI_PROVIDER/$PI_MODEL"
 [[ "${1:-}" == --model ]] && { model="${2:?usage: spawn [--model provider/model] <slug> <brief-file>}"; shift 2; }
 [[ "${1:-}" != --* ]] || die "unknown option $1; usage: spawn [--model provider/model] <slug> <brief-file>"
+[[ -n "$model" ]] || model=$("$bob/scripts/model" worker)
 slug="${1:?usage: spawn [--model provider/model] <slug> <brief-file>}"
 brief_file="${2:?usage: spawn [--model provider/model] <slug> <brief-file>}"
 agent_args=(--extension "$bob/extensions/bob.ts" --skill "$bob/SKILL.md" --bob-role worker)

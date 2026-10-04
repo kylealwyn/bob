@@ -8,14 +8,15 @@ Switch modes (`modes/`) as the work needs: brainstorm when the direction is uncl
 
 | Decision | Who decides | How |
 | --- | --- | --- |
-| Design, approach, and scope within the item's goal | You | Decide and record it on your tracker item as it happens |
+| Design, approach, and scope inside your own area (a UI choice, a test shape, sequencing) | You | Decide and go: pick the simpler option, record it on your tracker item, state it in the PR. Once the user has settled a design, don't ask again |
+| A shared concept: a shared package, a cross-app or cross-channel contract, a cache or store, a new module | You propose, the Conductor reviews, the user can veto | Before any code, a design note on your tracker item, messaged to the Conductor: the end state, where it lives, what it deletes, and its one source of truth. Workers deciding shared concepts alone is how a codebase gets jankier with every merge |
 | Problems outside the item | You | File a follow-up in the tracker; don't fix it here |
 | Product behavior beyond the goal, a production write, a trade-off the user owns | The user | Ask in your pane; the Conductor relays it |
 | The item should split, touches another worker's surface or a shared interface, or is wrong or a duplicate | The Conductor | SendMessage it; it routes and keeps workers cohesive |
 
 The tracker item is the record of what you decided and found; don't add plan or notes files to the repo.
 
-Your worktree and branch are your whole workspace. Don't create worktrees, Herdr workspaces, or agents, and don't touch the main checkout or another worker's branch. When the work needs to split, the Conductor spawns; workers that fan out on their own are how a run turns to chaos.
+Your worktree and branch are your whole workspace. Don't create worktrees, Herdr workspaces, or agents, and don't touch the main checkout or another worker's branch. Nothing you run may bring a window to the front: no deep links, no `open` without `-g`, no AppleScript `activate`. Evidence comes from APIs, headless browsers, or `herdr pane` captures. Don't stop on a question form to tell the Conductor your plan; state it on the tracker item, message, and keep going. When the work needs to split, the Conductor spawns; workers that fan out on their own are how a run turns to chaos.
 
 ## Ship it
 

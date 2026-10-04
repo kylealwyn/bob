@@ -5,7 +5,9 @@
 # removes the worktree and deletes the branch locally and on origin. Prints one
 # line per slug; exits non-zero if any was refused.
 #
-# It refuses, keeping everything, when the branch has an open PR. After the
+# It refuses, keeping everything, when the branch has an open PR or the agent
+# is mid-turn. It stops leftover dev processes in the tree and discards
+# regenerated *.gen.* files. After the
 # agent stops, so nothing written on the way out is missed, it refuses when:
 #   - the worktree has uncommitted or untracked files;
 #   - origin/<slug> has commits the worktree lacks;
@@ -31,6 +33,12 @@ for slug in "$@"; do
   pr=$(gh pr list --repo "$gh" --head "$slug" --state open --json number --jq '.[0].number // empty')
   [[ -z "$pr" ]] || { refuse "PR #$pr is still open, not closing"; continue; }
 
+  # A worker often sends its report before its turn ends (tracker updates,
+  # notes); stopping it mid-turn truncates those writes.
+  if command -v herdr >/dev/null && [[ "$(herdr agent get "$slug" 2>/dev/null | jq -r '.result.agent.agent_status // empty')" == working ]]; then
+    refuse "agent is mid-turn, not closing"; continue
+  fi
+
   # A worker's workspace exists only under Herdr; the Conductor's fast path has none.
   # With no Herdr server running there is no live workspace to stop.
   [[ "${HERDR_ENV:-}" != 1 ]] || command -v herdr >/dev/null || die "inside Herdr but the herdr CLI isn't on PATH"
@@ -41,6 +49,13 @@ for slug in "$@"; do
     workspace=$(jq -r --arg p "$path" '.result.worktrees[]? | select(.path == $p) | .open_workspace_id // empty' <<<"$list")
     [[ -z "$workspace" ]] || herdr workspace close "$workspace" >/dev/null
   fi
+
+  # A dev server can outlive its worker with its cwd in the tree, and it
+  # regenerates files (*.gen.*) after the last commit; neither is the
+  # worker's work. lsof exits 1 on files it can't stat.
+  { lsof +D "$path" 2>/dev/null || true; } | awk 'NR > 1 && $4 == "cwd" {print $2}' | sort -u |
+    while read -r pid; do kill "$pid" 2>/dev/null || true; done
+  git -C "$path" checkout -q -- ':(glob)**/*.gen.*' 2>/dev/null || true
 
   tip=$(git -C "$path" rev-parse HEAD)
   remote_tip=$(git -C "$repo" rev-parse --verify --quiet "refs/remotes/origin/$slug" || true)

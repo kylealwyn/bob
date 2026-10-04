@@ -18,8 +18,9 @@
 #   no-pr       commits ahead of the default branch, no PR
 #   idle        nothing committed yet
 #
-# The user's own sessions in this repo (unnamed agents) follow, with their
-# agent status only: blocked ones wait on the user.
+# Workers on saved Herdr machines follow, with their agent status only, then
+# the user's own sessions in this repo (unnamed agents): blocked ones wait on
+# the user.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 require_herdr
@@ -84,6 +85,14 @@ herdr worktree list --cwd "$repo" | jq -r --arg repo "$repo" \
     grep -qx "$workspace" <<<"$live" ||
       row "$(git -C "$path" branch --show-current)" gone - - "workspace $workspace has no agent; pane: herdr pane list --workspace $workspace"
   done
+
+# Workers on saved Herdr machines: their cwd is remote, so only the agent
+# status is known here, and the repo can't be checked.
+for m in $(herdr machine list --json 2>/dev/null | jq -r '.[]? | select(.enabled) | .label'); do
+  herdr --machine "$m" agent list 2>/dev/null |
+    jq -r '.result.agents[]? | select(.name) | [.name, .agent_status, .cwd] | @tsv' |
+    while IFS=$'\t' read -r name agent cwd; do row "$name@$m" "$agent" - - "remote, $cwd"; done
+done
 
 jq -r 'select(.name | not) | [.agent_status, .pane_id, (.cwd | split("/") | last), (.terminal_title_stripped // "")] | @tsv' <<<"$agents" |
   while IFS=$'\t' read -r agent pane checkout title; do

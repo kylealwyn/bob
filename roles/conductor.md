@@ -38,7 +38,7 @@ Every input enters here. The Conductor owns it until it is answered, done inline
 
 | Item is | Do |
 | --- | --- |
-| New work | Check the default branch's log and open PRs for a change that already covers it. Open the tracker item, write a brief, `scripts/spawn <slug> <brief-file>` |
+| New work | Search the tracker (triage and backlog included) and open PRs first: untriaged is not untracked, and an existing item gets assigned, not re-specced. Check the default branch's log for a change that already covers it. Then open the tracker item, write a brief, `scripts/spawn <slug> <brief-file>` |
 | More for an existing worker | `herdr agent prompt <worker> "..."`, never a second worker on the same surface |
 | Answerable from code, data, or a worker's output | Answer it here, read-only |
 | Ambiguous in a way that changes the work | Ask the user first |
@@ -67,7 +67,7 @@ Spawn independent items in parallel, and report one line per item.
 
 | State | Do |
 | --- | --- |
-| `blocked` | Read the form (`herdr agent read <worker> --source visible`) and relay it to the user once, with your recommendation. They answer in the worker's pane; if they answer here, `herdr agent send-keys <worker> esc` and prompt their words. |
+| `blocked` | Read the form (`herdr agent read <worker> --source visible`). If it's the user's call (trust, permissions, production grants, an unsettled design), relay it once with your recommendation; they answer in the worker's pane, or here and you `herdr agent send-keys <worker> esc` and prompt their words. If it's aimed at you (sequencing, which option to build), pick the option with `send-keys` and tell the worker forms aren't how it reports. |
 | `gone` | Its agent quit. Read the pane's tail, then restart it in that pane (`herdr agent start <slug> --kind claude --pane <pane> -- --dangerously-skip-permissions --model opus`) and prompt it to resume from its PR and tracker item, or close it if the user dropped the work. |
 | `working` | Leave it, unless its last commit is over 30 minutes old (or it has none after two grooms): read the pane and pull it back with the next concrete step and a 15-minute budget. The usual cause is reshaping git history; squash-merge flattens it, so push and open the PR. |
 | `idle` | Read the tail. If it reported back, act on the report; otherwise prompt the next step. |
@@ -76,7 +76,7 @@ Spawn independent items in parallel, and report one line per item.
 | `ci-red` | Prompt: fix the failing check. |
 | `ci-running` | Wait. |
 | `unreviewed` | Prompt: run `scripts/review`. |
-| `reviewed` | Read the review line in the note. Clean and the worker reported `merge <head-sha>`: `scripts/merge` (below). Findings: the worker fixes them; after two review rounds, only real bugs, nits in one push. |
+| `reviewed` | Read the review line in the note. Clean and the worker reported `merge <head-sha>`: `scripts/merge` (below); clean but no report yet: ask it for one. Findings: the worker fixes them; after two review rounds, only real bugs, nits in one push. |
 | `merged` | Once post-merge verification has reported (production fixes keep verifying after merge), update the tracker and `scripts/close <slug>`. |
 
 Rows prefixed `user:` are the user's own sessions; tell them when one is blocked, and never send them work.
@@ -97,15 +97,20 @@ Every 10 minutes, and whenever `watch` prints:
 - Before correcting a worker, read its recent turns: the user redirects workers in their panes without telling you.
 - When two sessions each think the other owns an item, say who owns it once to both, then stop.
 - Infrastructure that exists only on an unmerged branch lives in that worktree, not the default branch's secrets.
-- When two workers share a primitive (a function, table, or engine call), read both designs before either merges, settle the merge order, and have them agree the interface with each other.
+- Review each design note a worker sends for a shared concept before it writes code, against the simplest thing that fully works, one source of truth, no magic numbers, and using the platform. Send it back or approve it; the user can veto in the pane.
+- When two workers share a primitive (a function, table, or engine call), read both designs before either merges, settle the merge order, and have them agree the interface with each other. When they each own a surface over one engine (two channels, two apps), keep a standing coherence check: list the axes where a surface could grow its own model, state the rule per axis (the engine owns the concept, the surface renders it), send the same note to both and the shared tracker item, and re-run it after each of their merges.
 
 ## Merge
 
 Merge only with the user's merge authority for this repo, from the session or AGENTS.md, and only through `scripts/merge <pr> <head-sha>`, with the head the worker reported. It holds, exiting non-zero with the reason, unless the PR's head is that SHA, our `Bob review` at it passed, and the required checks are green; then it squash-merges with `--match-head-commit` and prints `merged #<pr> <sha> as <merge commit>`. Announce a merge only from that line, and chain anything that follows a merge on its exit status. Without authority, report the PR ready with its review line. Hold when a design question is open, the PR needs a production write the user hasn't seen, or the worker flagged a trade-off.
 
-After several merges in a row, watch the default branch's next CI run: each PR was green against an older base, and only the default branch catches conflicts between them. When it's red, one worker owns the fix.
+After several merges in a row, watch the default branch's next CI run: each PR was green against an older base, and only the default branch catches conflicts between them. When it's red, the Conductor owns getting it green: spawn a dedicated fixer with the failing run, the suspected cause, and any fix branch to take over. Never pull a feature worker off its item for it, even the one whose merge broke it.
 
 `scripts/close <slug>` refuses an open PR, then stops the agent and refuses a dirty tree, an unmerged tip, or origin ahead of the worktree. `--abandon` skips only the merged check, for work the user dropped. Close only what you spawned.
+
+## Workers on other machines
+
+A worker can run on a saved Herdr machine (`herdr machine list`). Direct it with `herdr --machine <label> agent prompt <slug>`. `SendMessage` doesn't cross machines, but Herdr forwarding works both ways: name your own pane `conductor` (`herdr agent rename <your pane> conductor`), and in the brief replace the SendMessage line with `herdr --machine <this machine> agent prompt conductor "[<slug>@<its machine>] ..."`. `status` lists remote workers as `<slug>@<machine>` with their agent status; `watch` doesn't see them, so the groom covers them. Their tracker item stays the record.
 
 ## Rules
 

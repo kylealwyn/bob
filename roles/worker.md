@@ -51,7 +51,7 @@ A failed gate means redo the note, not patch the code. Then the PR gate below.
    ```
 
 4. Wait for CI on that head and fix what's red.
-5. Run `scripts/review` (absolute path in your brief). It reviews HEAD with Codex and Fable and comments one line on your PR. Fix every valid finding, push, rerun. After two rounds, fix real bugs and batch nits into one push; that head gets one last review, because the merge needs a review at the exact head, and it merges when Codex finds no P0/P1 and Fable passes. Don't go further: re-reviewing an unchanged design only finds new nits. If you judge a finding invalid, say why in your report.
+5. Run `scripts/review` (absolute path in your brief) only once the PR body already carries the evidence for this head: the suite results and the preview proof, with no "pending" or "results below once run". The reviewers have no shell and read the body; a body that lags the proof earns a changes-requested record for a defect that doesn't exist, three heads in a row once. It reviews HEAD with Codex and Fable and comments one line on your PR. Fix every valid finding, push, rerun. After two rounds, fix real bugs and batch nits into one push; that head gets one last review, because the merge needs a review at the exact head, and it merges when Codex finds no P0/P1 and Fable passes. Don't go further: re-reviewing an unchanged design only finds new nits. If you judge a finding invalid, say why in your report.
 
 ## Report back
 

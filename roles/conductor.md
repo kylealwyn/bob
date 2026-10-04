@@ -2,26 +2,25 @@
 
 Every input enters here. The Conductor owns it until it is answered, done inline, or carried by a worker to a merged, verified PR.
 
-`scripts/` and `roles/` mean this skill's directories. Give workers absolute paths.
+`scripts/`, `roles/`, and `modes/` mean this skill's directories. Give workers absolute paths.
 
 ## Inline, fast path, or conduct
 
-**Inline** when the work is local, reversible, and verifiable in this session. Load the role for the current bottleneck and do it:
+**Inline** when the work is local, reversible, and verifiable in this session. Switch to the mode for the current bottleneck and do it:
 
-| Bottleneck | Role |
+| Bottleneck | Mode (`modes/`) |
 | --- | --- |
-| unclear destination or unapproved behavior | Brainstormer |
-| consequential backend or system seam | Architect |
-| current external facts | Researcher |
-| approved multi-slice direction | Planner |
-| new or materially changed interface | Designer |
-| approved implementation slice | Builder |
-| failing behavior | Debugger |
-| verification design | Tester |
-| a PR at an exact head | Reviewer |
-| correct but overcomplicated | Simplifier |
-| source rationale or API docs | Documenter |
-| human-interface acceptance | Driver |
+| unclear destination or unapproved behavior | brainstorm |
+| consequential backend or system seam | architect |
+| current external facts | research |
+| approved multi-slice direction | plan |
+| new or materially changed interface | design |
+| a slice to implement | build |
+| failing behavior | debug |
+| proof, including driving the product | verify |
+| a PR at an exact head | review |
+| correct but overcomplicated | simplify |
+| source rationale or API docs | document |
 
 **Fast path** for a config-sized change the Conductor owns (a few lines of settings, a doc fix). It is the one time the Conductor implements and reviews in its own context: `git fetch origin`, `git worktree add <path outside the main checkout> -b <slug> origin/<default branch>`; no workspace, setup, or worker. Edit, commit, `git push -u origin <slug>`, open the PR, run `scripts/review` from that worktree in the background, merge, then `scripts/close <slug>`.
 
@@ -50,10 +49,10 @@ Spawn independent items in parallel, and report one line per item.
 
 **Brief**, written to the scratchpad. The worker loads AGENTS.md and the user's rules itself; don't restate them.
 
-- **You are a Bob worker**: read `<abs>/roles/worker.md` first; your method is `<abs>/roles/<role>.md`; review with `<abs>/scripts/review`; report to `<this session's name>`.
+- **You are a Bob worker**: read `<abs>/roles/worker.md` first; start in `<abs>/modes/<mode>.md`; review with `<abs>/scripts/review`; report to `<this session's name>`.
 - **Goal**: the outcome in a sentence or two.
 - **From the user**: their words, verbatim, with links.
-- **Context**: facts already established (files, PRs, decisions). Skip what the worker finds faster.
+- **Context**: facts already established (files, PRs, decisions). Skip what the worker finds faster. The brief is a starting point; the worker owns the decisions inside its goal.
 - **Done means**: usually a PR ready for review with evidence. Verification runs against the built, deployed artifact; before merge that's the PR's own preview (the lane AGENTS.md names), never a shared environment the default branch deploys to.
 - **Scope**: what not to touch. Say when a surface is new and unused, or the worker treats it as live and stalls on ceremony.
 - **Dependencies**: wait on another PR only if this branch can't compile without it.

@@ -1,4 +1,4 @@
-# Bob the Planner
+# Plan
 
 Turn a clear, approved direction into ordered, verifiable implementation slices.
 
@@ -8,7 +8,7 @@ Turn a clear, approved direction into ordered, verifiable implementation slices.
 - Implementation order is not obvious.
 - Multiple agents or sessions may execute the work.
 
-Skip a single obvious change. If major decisions remain, use Bob the Brainstormer or Bob the Architect.
+Skip a single obvious change. If major decisions remain, use brainstorm mode or architect mode.
 
 ## Read before slicing
 
@@ -41,7 +41,7 @@ Verification:
 Blocked by: <task titles or none>
 Owns: <exact paths or resources>
 Out of scope: <one line>
-Role: Bob the Builder
+Mode: build
 ```
 
 Each task becomes one tracker item, one worker, and one PR. Only Bob the Conductor creates them.

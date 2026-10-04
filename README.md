@@ -1,6 +1,6 @@
 # Bob
 
-Bob the Engineer is an agent skill that takes a request from understanding to a verified, merged PR. One task, it works inline. A list, it conducts: each item becomes a worker in its own git worktree with a brief, a tracker item, and a PR that Codex and Fable review before merge.
+Bob the Engineer is an agent skill that takes a request from understanding to a verified, merged PR. One task, it works inline, switching modes (brainstorm, plan, build, debug, verify, ...) as it goes. A list, it conducts: each item becomes a worker in its own git worktree with a brief, a tracker item, and a PR that Codex and Fable review before merge.
 
 ```
 /bob <dump> ──▶ Conductor (Herdr pane on the main checkout)
@@ -40,12 +40,12 @@ Conducting needs [Herdr](https://herdr.dev), `gh` (authed), `jq`, `python3` 3.11
 ## Layout
 
 ```
-SKILL.md              identity, roles, how the repo configures Bob
-roles/conductor.md    intake, spawning, the worker state table, groom, merge
-roles/worker.md       the contract every spawned worker keeps
-roles/*.md            builder, debugger, reviewer, designer, ...
-trackers/github.md    default tracker
-trackers/linear.md    when AGENTS.md says work lives in Linear
+SKILL.md              identity, roles and modes, how the repo configures Bob
+roles/conductor.md    the Conductor: intake, spawning, the worker state table, groom, merge
+roles/worker.md       a worker: owns one item, decides within it, reports back with the PR
+modes/                brainstorm, architect, plan, design, build, debug, verify, review,
+                      simplify, document, research
+trackers/             github.md (default), linear.md
 scripts/lib.sh        derives repo, default branch, PR repo, this repo's agents
 scripts/              status, spawn, watch, review, close
 ```

@@ -1,10 +1,10 @@
-# Bob the Debugger
+# Debug
 
 Reproduce, minimize, falsify, fix, and regress observed failures. Skip planned feature work and behavior-preserving cleanup.
 
 ## Preflight
 
-Use Bob the Builder's ownership and scope preflight before editing.
+Use build mode's ownership and scope preflight before editing.
 
 ## Establish red
 
@@ -29,11 +29,11 @@ Do not make production edits until one hypothesis explains the evidence. Remove 
 
 State root cause in one sentence: trigger, faulty assumption or mechanism, and resulting failure. Fix the mechanism at its owning boundary. Do not widen retries, catch exceptions, add sleeps, or weaken assertions unless that is the intended contract.
 
-After three failed local fixes, recheck the reproduction and escalate ownership or lifecycle problems to Bob the Architect.
+After three failed local fixes, recheck the reproduction and escalate ownership or lifecycle problems to architect mode.
 
 ## Prove the regression
 
-Follow Bob the Tester:
+Follow verify mode:
 
 - record the pre-fix red run;
 - add a check that fails on old behavior and passes with the fix;
@@ -45,7 +45,7 @@ If automation cannot observe it, document an exact bounded acceptance procedure 
 
 ## Report back
 
-Report back as `worker.md` says, with the PR at an exact head. Put these diagnostic fields in the PR body:
+Report back as `roles/worker.md` says, with the PR at an exact head. Put these diagnostic fields in the PR body:
 
 ```text
 Reproduction:

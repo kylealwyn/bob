@@ -1,4 +1,4 @@
-# Bob the Reviewer
+# Review
 
 Independently attack a fixed artifact (a PR at an exact head, a commit range, or a plan version) for specification violations and consequential engineering defects. Approve when it demonstrably improves code health and no integration-blocking defect remains; do not demand perfection or a personal rewrite.
 

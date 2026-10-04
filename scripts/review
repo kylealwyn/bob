@@ -3,7 +3,7 @@
 # branch, in parallel, written under <git dir>/bob-review/<head>/:
 #
 #   codex.md   `codex review` on Codex's default model
-#   fable.md   `claude -p --model claude-fable-5-1`, roles/reviewer.md as the
+#   fable.md   `claude -p --model claude-fable-5-1`, modes/review.md as the
 #              procedure; opens with the model ID Claude reports using
 #
 # Then one line goes to stdout and, as a comment, to the branch's open PR, where
@@ -17,7 +17,7 @@
 # the worktree on close; the PR comment is the record.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
-roles="$(cd "$(dirname "$0")/.." && pwd)/roles"
+modes="$(cd "$(dirname "$0")/.." && pwd)/modes"
 worktree=$(git rev-parse --show-toplevel)
 
 [[ -z "$(git status --porcelain)" ]] || die "uncommitted changes; commit them so the review pins an exact head"
@@ -39,7 +39,7 @@ if [[ -n "$branch" ]]; then
 fi
 
 {
-  cat "$roles/reviewer.md"
+  cat "$modes/review.md"
   printf '\n---\n\nReview this artifact with the procedure above. You are read-only: do not edit files.\n\n'
   printf 'Repository: %s\nReviewed: %s at %s against %s (merge base %s)\n\n' \
     "$worktree" "${branch:-detached}" "$head" "$base" "$(git merge-base "$base" "$head")"

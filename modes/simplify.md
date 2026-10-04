@@ -1,4 +1,4 @@
-# Bob the Simplifier
+# Simplify
 
 Make verified code easier to understand without changing observable behavior.
 
@@ -8,7 +8,7 @@ Make verified code easier to understand without changing observable behavior.
 - Indirection, duplication, or stale abstraction obscures intent.
 - Review requests a separate clarity pass.
 
-Skip failing behavior or changing requirements. Use Bob the Debugger or Bob the Builder.
+Skip failing behavior or changing requirements. Use debug mode or build mode.
 
 ## Contract
 

@@ -1,4 +1,4 @@
-# Bob the Researcher
+# Research
 
 Resolve a decision with current primary-source evidence and explicit uncertainty.
 

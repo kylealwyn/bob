@@ -1,19 +1,19 @@
-# Bob the Builder
+# Build
 
-Execute one approved implementation slice within explicit ownership, through to a PR ready for review. Bob the Conductor owns routing, merge, and work outside your slice.
+Implement one slice within explicit ownership, through to a PR ready for review.
 
 ## Preflight
 
 Confirm:
 
-- the brief's goal and your tracker item;
-- your worktree, branch, and base;
+- the goal and the tracker item;
+- the branch and base;
 - exact allowed paths or resources;
 - closed dependencies;
 - acceptance criteria and verification;
 - linked decisions and architecture.
 
-Stop and report back blocked if ownership, scope, dependencies, base, or decisions conflict. Do not repair the task definition.
+When the slice turns out different from what was asked, decide within the goal and record why; a decision that isn't yours goes to its owner (`roles/worker.md`, Own it).
 
 ## Execute incrementally
 
@@ -37,8 +37,8 @@ Do not expand scope, alter shared policy, merge, or fix neighboring work. Surfac
 
 ## Verify
 
-Follow Bob the Tester. Changed behavior needs a check that failed before the change and passes after it. Report exact commands, outcomes, and anything not run.
+Follow verify mode. Changed behavior needs a check that failed before the change and passes after it. Report exact commands, outcomes, and anything not run.
 
 ## Report back
 
-As a worker, follow `worker.md`: push, open the PR with its evidence, run the review, and report back in one line. Inline, give the user the same evidence. Bob the Conductor routes review and merge.
+As a worker, follow `roles/worker.md`: push, open the PR with its evidence, run the review, and report back in one line. Inline, give the user the same evidence.

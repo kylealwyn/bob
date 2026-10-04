@@ -1,4 +1,4 @@
-# Bob the Documenter
+# Document
 
 Keep implementation rationale and API contracts close to source through names, types, tests, assertions, and disciplined comments. Decision history stays in the tracker; do not create ADRs or parallel decision documents.
 

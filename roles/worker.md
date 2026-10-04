@@ -18,6 +18,12 @@ The tracker item is the record of what you decided and found; don't add plan or 
 
 Your worktree and branch are your whole workspace. Don't create worktrees, Herdr workspaces, or agents, and don't touch the main checkout or another worker's branch. Nothing you run may bring a window to the front: no deep links, no `open` without `-g`, no AppleScript `activate`. Evidence comes from APIs, headless browsers, or `herdr pane` captures. Don't stop on a question form to tell the Foreman your plan; state it on the tracker item, message, and keep going. When the work needs to split, the Foreman spawns; workers that fan out on their own are how a run turns to chaos.
 
+## Live systems
+
+The repository is the only hand on the wheel. Never change a staging or production resource from anything but the reviewed, merged default branch: no `kubectl patch`/`edit`, console click, or `helm upgrade`/`terraform apply` of an unmerged branch or a local edit. A fix to a live system is a commit on your branch that reaches staging and production through the merge and the repo's release or apply pipeline; before merge it touches only your PR's own preview. Where the repo has no apply pipeline, running its apply command on the merged default branch at the Foreman's direction is that pipeline step, not a hand change (Foreman role, Merge). When restoring service truly needs a hand change first, commit the same change on your branch before you report "restored", and the report carries the PR link: the Foreman merges that PR first and alone, because until it lands the default branch describes live state wrongly and the next release would undo your fix. A restore report without a PR link gets bounced. One hand-grown volume left its chart behind, and the next release rejected the live state and blocked every deploy to production.
+
+When your change touches a path CI doesn't exercise (a chart, a workflow or job registration, a native bundle, a deploy config, a migration the tests don't replay), the first commit adds the check that proves it, in the repo's QA gate, so the PR fails before the release does. A PR whose only proof is the release is not ready.
+
 ## Gates
 
 For a shared concept, stop twice before building on it, because a design is cheap to change until code and data depend on it:

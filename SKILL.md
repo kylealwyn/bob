@@ -50,7 +50,7 @@ No config file. Everything comes from the checkout the Foreman runs in:
 | worktree setup | `[setup].script` of the repo's one `.codex/environments/*.toml`; none if absent |
 | tracker | AGENTS.md: `trackers/linear.md` if work lives in Linear, else `trackers/github.md` |
 | harness | the agent CLI a session runs in: `harnesses/claude-code.md` (Foreman and workers), `harnesses/codex.md` (workers) |
-| verification, preview lane, merge authority | AGENTS.md or the session |
+| verification, preview lane, release or apply pipeline, merge authority | AGENTS.md or the session |
 | models | workers Claude Opus (or Codex with `spawn --kind codex`); reviews `codex review` and `claude -p --model claude-fable-5-1` |
 
 ## Scripts

@@ -69,10 +69,10 @@ test("an existing Pi session attaches as a worker and keeps its role and later m
   const h = harness(); h.emit("session_start");
   await h.commands.get("bob")!.handler("--role worker Continue the saved task", h.ctx);
   assert.equal(watchers.length, 0);
-  assert.deepEqual(h.selectedModels, ["openai/gpt-6.1-sol"]);
+  assert.deepEqual(h.selectedModels, []);
   assert.equal(h.entries[0].data.role, "worker");
   await h.commands.get("bob")!.handler("", h.ctx);
-  assert.equal(h.selectedModels.length, 1);
+  assert.equal(h.selectedModels.length, 0);
   await assert.rejects(h.commands.get("bob")!.handler("--role foreman", h.ctx), /Bob worker/);
   h.emit("session_shutdown");
 });

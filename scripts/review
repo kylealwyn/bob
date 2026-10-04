@@ -67,6 +67,7 @@ run_review() {
   # Fresh ephemeral contexts and explicit resource isolation, not just a tool allowlist.
   pi --print --mode json --no-session --no-approve --no-extensions --no-skills \
     --no-prompt-templates --no-context-files --no-themes \
+    --system-prompt "$bob/modes/review.md" --append-system-prompt "" \
     --extension "$bob/extensions/review.ts" --tools read,grep,find,ls,review_result \
     "${args[@]}" <"$out/prompt.md" >"$out/$number.events.jsonl" 2>"$out/$number.log"
   "$bob/scripts/review-result" "$out/$number.events.jsonl" >"$out/$number.json"

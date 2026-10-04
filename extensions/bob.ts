@@ -2,7 +2,6 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { roleModel } from "./models.ts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const groomInterval = 10 * 60 * 1000;
@@ -145,13 +144,6 @@ export default function bob(pi: ExtensionAPI) {
       const nextRole = explicit ? explicit[1] as Role : role ?? "foreman";
       if (role && role !== nextRole) throw new Error(`This session is a Bob ${role}; start a new session for ${nextRole}.`);
       const task = explicit ? explicit[2] : request;
-      if (!role) {
-        const selected = roleModel(nextRole, ctx.model?.provider);
-        const [provider, ...id] = selected.split("/");
-        const model = ctx.modelRegistry.find(provider, id.join("/"));
-        if (!model) throw new Error(`Bob ${nextRole} model ${selected} is unavailable; update models.json or BOB_MODELS_FILE.`);
-        if (!await pi.setModel(model)) throw new Error(`Log in to ${provider} with /login before starting Bob.`);
-      }
       setRole(nextRole, ctx);
       paused = false;
       pi.sendUserMessage(`Read ${root}SKILL.md and ${root}roles/${role}.md. ${task || (role === "foreman" ? "Run Boot and resume the current work." : "Resume your current assignment and existing brief; inspect live state before repeating effects.")}`, { deliverAs: "followUp" });

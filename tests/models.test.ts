@@ -28,3 +28,17 @@ test("model generations and default provider change through configuration", () =
     rmSync(dir, { recursive: true });
   }
 });
+
+test("explicit models and every native saved-session selector bypass role defaults", () => {
+  const dir = mkdtempSync(join(tmpdir(), "bob-launch-"));
+  try {
+    const pi = join(dir, "pi");
+    writeFileSync(pi, '#!/usr/bin/env python3\nimport json,sys\nprint(json.dumps(sys.argv[1:]))\n', { mode: 0o755 });
+    const env = { ...process.env, PATH: `${dir}:${process.env.PATH}`, PI_PROVIDER: "unconfigured" };
+    for (const args of [["--model", "openai/gpt-6-sol"], ["--provider", "unconfigured", "--model", "selected"], ...["--session", "--session-id", "--fork", "--resume", "--continue"].map((flag) => [flag, "saved"])]) {
+      const actual = JSON.parse(execFileSync("scripts/start", args, { env, encoding: "utf8" }));
+      assert.deepEqual(actual.slice(-args.length), args);
+      assert.equal(actual.filter((arg: string) => arg === "--model").length, args.includes("--model") ? 1 : 0);
+    }
+  } finally { rmSync(dir, { recursive: true }); }
+});

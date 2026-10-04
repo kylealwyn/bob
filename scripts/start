@@ -4,13 +4,15 @@ set -euo pipefail
 bob=$(cd "$(dirname "$0")/.." && pwd)
 provider="${PI_PROVIDER:-}"
 resume=false
+explicit_model=false
 args=("$@")
 for ((i=0; i<${#args[@]}; i++)); do
   case "${args[i]}" in
+    --model) explicit_model=true ;;
     --provider) provider=${args[i+1]:?--provider needs a provider} ;;
-    --session|--resume|-r|--continue|-c) resume=true ;;
+    --session|--session-id|--fork|--resume|-r|--continue|-c) resume=true ;;
   esac
 done
 model_args=()
-$resume || model_args=(--model "$("$bob/scripts/model" foreman "$provider")")
+if ! $resume && ! $explicit_model; then model_args=(--model "$("$bob/scripts/model" foreman "$provider")"); fi
 exec pi --extension "$bob/extensions/bob.ts" --skill "$bob/SKILL.md" --bob-role foreman "${model_args[@]}" "$@"

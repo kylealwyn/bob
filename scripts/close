@@ -29,11 +29,13 @@ for slug in "$@"; do
   path=$(git -C "$repo" worktree list --porcelain | awk -v want="$slug" '
     /^worktree / {p = substr($0, 10)} /^branch / && $0 == "branch refs/heads/" want {print p; exit}')
   # A worker that finished parks its worktree detached on the default branch,
-  # so the branch lookup finds nothing; the worktree is then the one spawn
-  # created, named by the slug.
+  # so the branch lookup finds nothing; the worktree is then the detached one
+  # spawn created, named by the slug. Only a detached one: another tool's
+  # worktree can end in the same name while on its own branch.
   if [[ -z "$path" ]]; then
     path=$(git -C "$repo" worktree list --porcelain | awk -v want="/$slug" '
-      /^worktree / {p = substr($0, 10); if (substr(p, length(p) - length(want) + 1) == want) {print p; exit}}')
+      /^worktree / {p = substr($0, 10)}
+      /^detached$/ && substr(p, length(p) - length(want) + 1) == want {print p; exit}')
   fi
   [[ -n "$path" ]] || { refuse "no worktree for $slug"; continue; }
   [[ "$path" != "$repo" ]] || { refuse "is the main checkout"; continue; }
@@ -77,7 +79,10 @@ for slug in "$@"; do
   if ! err=$(git -C "$repo" worktree remove "$path" 2>&1); then
     refuse "agent stopped; ${err#fatal: }"; continue
   fi
-  git -C "$repo" branch -D "$slug" >/dev/null
+  # A detached worktree's branch may already be gone.
+  if git -C "$repo" show-ref --verify --quiet "refs/heads/$slug"; then
+    git -C "$repo" branch -D "$slug" >/dev/null
+  fi
   # The prune above dropped branches GitHub deleted on merge; the lease keeps a
   # push that landed since.
   if [[ -n "$remote_tip" ]] && ! err=$(git -C "$repo" push origin --delete --force-with-lease="$slug:$remote_tip" "$slug" --quiet 2>&1); then

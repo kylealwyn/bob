@@ -13,6 +13,6 @@ for ((i=0; i<${#args[@]}; i++)); do
     --session|--session-id|--fork|--resume|-r|--continue|-c) resume=true ;;
   esac
 done
-model_args=()
-if ! $resume && ! $explicit_model; then model_args=(--model "$("$bob/scripts/model" foreman "$provider")"); fi
-exec pi --extension "$bob/extensions/bob.ts" --skill "$bob/SKILL.md" --bob-role foreman "${model_args[@]}" "$@"
+pi_args=(--extension "$bob/extensions/bob.ts" --skill "$bob/SKILL.md" --bob-role foreman)
+if ! $resume && ! $explicit_model; then pi_args+=(--model "$("$bob/scripts/model" foreman "$provider")"); fi
+exec pi "${pi_args[@]}" "$@"

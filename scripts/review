@@ -58,14 +58,14 @@ fi
 
 run_review() {
   local number=$1 model=""
-  local args=()
+  local args=(--no-session)
   if (( ${#models[@]} )); then
     model=${models[0]}
     (( ${#models[@]} < 2 || number != 2 )) || model=${models[1]}
     args+=(--model "$model")
   fi
   # Fresh ephemeral contexts and explicit resource isolation, not just a tool allowlist.
-  pi --print --mode json --no-session --no-approve --no-extensions --no-skills \
+  pi --print --mode json --no-approve --no-extensions --no-skills \
     --no-prompt-templates --no-context-files --no-themes \
     --system-prompt "$bob/modes/review.md" --append-system-prompt "" \
     --extension "$bob/extensions/review.ts" --tools read,grep,find,ls,review_result \

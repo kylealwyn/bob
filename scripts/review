@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# review — two fresh-context frontier reviews of HEAD against the default
-# branch, in parallel, written under <git dir>/bob-review/<head>/:
+# review [--note <file>] — two fresh-context frontier reviews of HEAD against
+# the default branch, in parallel, written under <git dir>/bob-review/<head>/:
 #
 #   codex.md   `codex review` on Codex's default model
 #   fable.md   `claude -p --model claude-fable-5-1`, modes/review.md as the
@@ -10,6 +10,11 @@
 # the Foreman reads it: `Bob review at <sha>: Codex <findings> · Fable <verdict>`.
 # Untagged Codex output is quoted, never read as clean.
 #
+# --note <file> reviews a design note (modes/review.md, Design notes). With no
+# commits yet, Fable reviews the note alone; with commits (the first interface
+# commit), both review the diff with the note as its specification. The line
+# reads `Bob design review ...`; post it with the note to the tracker item.
+#
 # Run it in the worker's worktree with everything committed, and don't commit
 # while it runs; it fails if the worktree changed. Neither reviewer may read the
 # terminal (a CLI waiting on stdin hangs forever). Fable gets read-only tools and
@@ -17,6 +22,11 @@
 # the worktree on close; the PR comment is the record.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
+note=""
+if [[ "${1:-}" == --note ]]; then
+  note=$(cd "$(dirname "${2:?usage: review [--note <file>]}")" && pwd)/$(basename "$2")
+  [[ -s "$note" ]] || die "design note is empty or missing: $2"
+fi
 modes="$(cd "$(dirname "$0")/.." && pwd)/modes"
 worktree=$(git rev-parse --show-toplevel)
 
@@ -24,7 +34,8 @@ worktree=$(git rev-parse --show-toplevel)
 git fetch origin --quiet
 head=$(git rev-parse HEAD)
 branch=$(git branch --show-current)
-[[ -n "$(git rev-list "$base..$head")" ]] || die "HEAD has no commits beyond $base"
+commits=$(git rev-list "$base..$head")
+[[ -n "$commits" || -n "$note" ]] || die "HEAD has no commits beyond $base"
 
 out="$(git rev-parse --path-format=absolute --git-dir)/bob-review/$head"
 mkdir -p "$out"
@@ -43,13 +54,22 @@ fi
   printf '\n---\n\nReview this artifact with the procedure above. You are read-only: do not edit files.\n\n'
   printf 'Repository: %s\nReviewed: %s at %s against %s (merge base %s)\n\n' \
     "$worktree" "${branch:-detached}" "$head" "$base" "$(git merge-base "$base" "$head")"
+  if [[ -n "$note" ]]; then
+    printf 'This is a design review: follow the Design notes section above.\n\n## Design note\n\n'; cat "$note"; printf '\n\n'
+  fi
   printf '## Pull request\n\n%s\n\n' "${pr:-none open}"
-  printf '## Commits\n\n'; git log --format='%h %s%n%n%b' "$base..$head"
-  printf '\n## Diff\n\n```diff\n'; git diff "$base...$head"; printf '```\n'
+  if [[ -n "$commits" ]]; then
+    printf '## Commits\n\n'; git log --format='%h %s%n%n%b' "$base..$head"
+    printf '\n## Diff\n\n```diff\n'; git diff "$base...$head"; printf '```\n'
+  fi
 } >"$out/fable-prompt.md"
 
-codex review --base "$base" </dev/null >"$out/codex.md" 2>"$out/codex.log" &
-codex_pid=$!
+# A note with no code yet has no diff for Codex to review.
+codex_pid=""
+if [[ -n "$commits" ]]; then
+  codex review --base "$base" </dev/null >"$out/codex.md" 2>"$out/codex.log" &
+  codex_pid=$!
+fi
 
 fable() {
   local json
@@ -63,22 +83,26 @@ fable 2>"$out/fable.log" &
 fable_pid=$!
 
 status=0
-wait "$codex_pid" || { echo "codex review failed; see $out/codex.log" >&2; status=1; }
+[[ -z "$codex_pid" ]] || wait "$codex_pid" || { echo "codex review failed; see $out/codex.log" >&2; status=1; }
 wait "$fable_pid" || { echo "fable review failed; see $out/fable.log" >&2; status=1; }
 
 [[ "$(git rev-parse HEAD)" == "$head" && -z "$(git status --porcelain)" ]] \
   || { echo "the worktree changed during review; the reports may not match $head. Rerun." >&2; status=1; }
-[[ -s "$out/codex.md" ]] || { echo "codex review wrote no report; see $out/codex.log" >&2; status=1; }
+[[ -z "$codex_pid" || -s "$out/codex.md" ]] || { echo "codex review wrote no report; see $out/codex.log" >&2; status=1; }
 
 for f in codex fable; do [[ -s "$out/$f.md" ]] && printf '%s  %s\n' "$f" "$out/$f.md"; done
 (( status == 0 )) || exit "$status"
 
 # One summary line, also posted on the open PR: the Foreman reads verdicts
 # there at the exact head, and the record outlives the worktree.
-findings=$(grep -oE '^- \[P[0-9]\]' "$out/codex.md" | grep -oE 'P[0-9]' | sort | uniq -c | awk '{printf "%s%s x%s", sep, $2, $1; sep=", "}' || true)
-verdict=$(grep -m1 -oE '^Verdict: [a-z_]+' "$out/fable.md" | cut -d' ' -f2 || true)
-# Fail closed: untagged Codex output is quoted, not read as clean.
-[[ -n "$findings" ]] || findings="no tagged findings (\"$(head -c 160 "$out/codex.md" | head -1)\")"
-summary="Bob review at $head: Codex $findings · Fable ${verdict:-no verdict line, see fable.md}"
+findings=$([[ -z "$codex_pid" ]] || grep -oE '^- \[P[0-9]\]' "$out/codex.md" | grep -oE 'P[0-9]' | sort | uniq -c | awk '{printf "%s%s x%s", sep, $2, $1; sep=", "}' || true)
+verdict=$(grep -m1 -oE '^Verdict: (approve with changes|approve|redesign|pass|changes_requested)' "$out/fable.md" | sed 's/^Verdict: //' || true)
+if [[ -n "$codex_pid" ]]; then
+  # Fail closed: untagged Codex output is quoted, not read as clean.
+  [[ -n "$findings" ]] || findings="no tagged findings (\"$(head -c 160 "$out/codex.md" | head -1)\")"
+  findings="Codex $findings · "
+fi
+fable_findings=$(grep -oE '^(- )?\[P[0-9]\]' "$out/fable.md" | grep -oE 'P[0-9]' | sort | uniq -c | awk '{printf "%s%s x%s", sep, $2, $1; sep=", "}' || true)
+summary="Bob ${note:+design }review at $head: ${findings}Fable ${verdict:-no verdict line, see fable.md}${fable_findings:+ ($fable_findings)}"
 printf '%s\n' "$summary"
-[[ -z "$pr_number" ]] || gh pr comment "$pr_number" --repo "$gh" --body "$summary" >/dev/null
+[[ -n "$note" || -z "$pr_number" ]] || gh pr comment "$pr_number" --repo "$gh" --body "$summary" >/dev/null

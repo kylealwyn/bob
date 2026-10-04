@@ -188,6 +188,23 @@ Waived dimensions:
 
 No praise, recap, edits, tracker writes, or merge.
 
+## Design notes
+
+A design note is reviewed before any code binds to it, because a schema, a wire contract, or a store gets expensive to change once code and data depend on it. Review it the way the principal engineer who owns the product would. Read the repo's AGENTS.md and the product doc it points to, and the existing code the note must fit or says it changes, and judge it against:
+
+- the simplest thing that fully works; every noun and field has a real use case;
+- the final state: would you land here starting from scratch;
+- one way to do each thing, one source of truth;
+- the platform before building your own;
+- no magic numbers or arbitrary caps; known needs, not hypothetical ones;
+- one name per concept, in the product's nouns;
+- store raw inputs and derive the rest;
+- no fallbacks or shims for unshipped code; a shim for a live contract names its removal condition.
+
+When the note comes with code (the first interface commit: a migration, types, a wire protocol as code), the note is the specification: review the diff for where it departs from the note, then the note itself.
+
+Report findings only, ranked: `[P1|P2|P3] <claim> · <why, citing the rule or product line> · <what to do instead>`. P1 is a wrong model or contract that will be expensive to reverse once data or code depends on it; P2 breaks a rule or adds complexity without a use case; P3 is naming or clarity. End with `Verdict: approve | approve with changes | redesign`. No praise, no summary of the note.
+
 ## Sources
 
 Synthesized in original language from Google's Engineering Practices and *Software Engineering at Google*; empirical modern-review research by Bacchelli and Bird, Bosu et al., Czerwonka et al., McIntosh et al., and Sadowski et al.; Linux review guidance; Lamport, Herlihy and Wing, Berenson et al., Helland, Garcia-Molina and Salem, and AWS/Google reliability guidance; OWASP ASVS and Secure Code Review guidance; NIST SSDF; SLSA; OpenSSF Scorecard; and mutation/property-based testing research. Addy Osmani's review skill informed the comparison, not the procedure or its framework-specific checklist.

@@ -56,6 +56,7 @@ Spawn independent items in parallel, and report one line per item. Workers run C
 - **Scope**: what not to touch. Say when a surface is new and unused, or the worker treats it as live and stalls on ceremony.
 - **Dependencies**: wait on another PR only if this branch can't compile without it.
 - **Tracker**: the item's link.
+- **Gates**: which apply (a shared concept means 1 and 2), so the worker plans for them.
 - **Merging**: you never merge. When the PR is ready, report `merge <head-sha>` and stop pushing to the branch.
 
 `spawn` refuses a slug that already has a worktree, branch, or live agent. It creates the worktree off the default branch without taking focus, runs the main checkout's `.codex/environments/*.toml` `[setup].script` (cleaning up if it fails), starts the worker as agent `<slug>` (Claude on Opus, or `--kind codex`), and submits the brief.
@@ -80,6 +81,19 @@ Spawn independent items in parallel, and report one line per item. Workers run C
 
 Rows prefixed `user:` are the user's own sessions; tell them when one is blocked, and never send them work.
 
+## Gates
+
+Review happens wherever a mistake gets expensive to reverse, not only at the PR: once code and data bind to a design, agents defend it instead of reshaping it.
+
+| Gate | When | The worker | You |
+| --- | --- | --- | --- |
+| 1. Design note | A shared concept (a schema, a wire contract, a store, a module), before any code binds to it | Writes the note in a file outside the repo, runs `scripts/review --note <file>`, posts the note, the review line, and the findings to its tracker item, messages you, and keeps going on parts that don't bind | Read the note and findings, then approve or send back as a tracker comment with the findings, never only a pane prompt. Relay the note and findings to the user before code binds; they can veto |
+| 2. First interface commit | The commit that turns the note into code: a migration, types, a wire protocol | Runs `scripts/review --note <file>` on that commit, posts the result to the tracker item, waits | Approve on the tracker before anything is built on it |
+| 3. PR | Ready for review | `scripts/review`, fixes, reports `merge <head-sha>` | `scripts/merge` |
+| 4. After merge | The default branch's CI and the preview | Verifies on the deployed artifact | Watch the default branch's CI |
+
+A failed gate 1 or 2 means redo the note, not patch the code. UI work shows its screenshots in the PR (verify mode); that's evidence, not a stop.
+
 ## Groom
 
 Every 10 minutes, and whenever `watch` prints:
@@ -96,7 +110,7 @@ Every 10 minutes, and whenever `watch` prints:
 - Before correcting a worker, read its recent turns: the user redirects workers in their panes without telling you.
 - When two sessions each think the other owns an item, say who owns it once to both, then stop.
 - Infrastructure that exists only on an unmerged branch lives in that worktree, not the default branch's secrets.
-- Review each design note a worker sends for a shared concept before it writes code, against the simplest thing that fully works, one source of truth, no magic numbers, and using the platform. Send it back or approve it; the user can veto in the pane.
+- Design notes and first interface commits go through Gates; approve them on the tracker item, not in a pane.
 - When two workers share a primitive (a function, table, or engine call), read both designs before either merges, settle the merge order, and have them agree the interface with each other. When they each own a surface over one engine (two channels, two apps), keep a standing coherence check: list the axes where a surface could grow its own model, state the rule per axis (the engine owns the concept, the surface renders it), send the same note to both and the shared tracker item, and re-run it after each of their merges.
 
 ## Merge

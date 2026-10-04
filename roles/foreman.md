@@ -123,7 +123,7 @@ A PR that changes declared infrastructure (Terraform, charts the infra applies) 
 
 After several merges in a row, watch the default branch's next CI run: each PR was green against an older base, and only the default branch catches conflicts between them. When it's red, the Foreman owns getting it green: spawn a dedicated fixer with the failing run, the suspected cause, and any fix branch to take over. Never pull a feature worker off its item for it, even the one whose merge broke it.
 
-`scripts/close <slug>` refuses an open PR, then stops the agent and refuses a dirty tree, an unmerged tip, or origin ahead of the worktree. `--abandon` skips only the merged check, for work the user dropped. Close only what you spawned.
+`scripts/close <slug>` refuses an open PR, then stops the agent and refuses a dirty tree, an unmerged commit (the worktree's HEAD or the slug branch), or origin ahead of the worktree that isn't a merged PR's head. A finished worker parked detached is found by its slug. `--abandon` skips only the merged check, for work the user dropped. Close only what you spawned.
 
 ## Workers on other machines
 

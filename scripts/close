@@ -7,12 +7,14 @@
 #
 # It refuses, keeping everything, when the branch has an open PR or the agent
 # is mid-turn. It stops leftover dev processes in the tree and discards
-# regenerated *.gen.* files. After the
-# agent stops, so nothing written on the way out is missed, it refuses when:
+# regenerated *.gen.* files. A worker that finished may have parked its
+# worktree detached; then it's found by the slug at the end of its path. After
+# the agent stops, so nothing written on the way out is missed, it refuses when:
 #   - the worktree has uncommitted or untracked files;
-#   - origin/<slug> has commits the worktree lacks;
-#   - the tip is neither on the default branch nor the head of a merged PR
-#     (squash merges leave it off the default branch), unless --abandon.
+#   - origin/<slug> has commits the worktree lacks, unless it's a merged PR's
+#     head (a squash merge leaves the branch behind);
+#   - the worktree's HEAD or the slug branch's tip is neither on the default
+#     branch nor the head of a merged PR, unless --abandon.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 
@@ -28,7 +30,17 @@ refuse() { echo "$slug: $*"; failed=1; }
 for slug in "$@"; do
   path=$(git -C "$repo" worktree list --porcelain | awk -v want="$slug" '
     /^worktree / {p = substr($0, 10)} /^branch / && $0 == "branch refs/heads/" want {print p; exit}')
-  [[ -n "$path" ]] || { refuse "no worktree on branch $slug"; continue; }
+  # A worker that finished parks its worktree detached on the default branch,
+  # so the branch lookup finds nothing; the worktree is then the detached one
+  # spawn created, named by the slug. Only a detached one: another tool's
+  # worktree can end in the same name while on its own branch.
+  if [[ -z "$path" ]]; then
+    path=$(git -C "$repo" worktree list --porcelain | awk -v want="/$slug" '
+      /^worktree / {p = substr($0, 10)}
+      /^detached$/ && substr(p, length(p) - length(want) + 1) == want {print p}')
+    [[ "$(grep -c . <<<"$path")" -le 1 ]] || { refuse "several detached worktrees end in /$slug; remove the worker's by hand"; continue; }
+  fi
+  [[ -n "$path" ]] || { refuse "no worktree for $slug"; continue; }
   [[ "$path" != "$repo" ]] || { refuse "is the main checkout"; continue; }
   pr=$(gh pr list --repo "$gh" --head "$slug" --state open --json number --jq '.[0].number // empty')
   [[ -z "$pr" ]] || { refuse "PR #$pr is still open, not closing"; continue; }
@@ -57,20 +69,31 @@ for slug in "$@"; do
     while read -r pid; do kill "$pid" 2>/dev/null || true; done
   git -C "$path" checkout -q -- ':(glob)**/*.gen.*' 2>/dev/null || true
 
-  tip=$(git -C "$path" rev-parse HEAD)
+  # Judge every commit that removal would orphan: the worktree's HEAD and,
+  # when it exists, the slug branch's tip (a parked worktree's HEAD isn't the
+  # branch, and a worker can commit on either).
+  tips=$(git -C "$path" rev-parse HEAD; git -C "$repo" rev-parse --verify --quiet "refs/heads/$slug" || true)
   remote_tip=$(git -C "$repo" rev-parse --verify --quiet "refs/remotes/origin/$slug" || true)
-  if [[ -n "$remote_tip" ]] && ! git -C "$repo" merge-base --is-ancestor "$remote_tip" "$tip"; then
+  merged_heads=$(gh pr list --repo "$gh" --head "$slug" --state merged --json headRefOid --jq '.[].headRefOid') ||
+    { refuse "agent stopped; couldn't list merged PRs, worktree kept"; continue; }
+  merged() { git -C "$repo" merge-base --is-ancestor "$1" "$base" || grep -qx "$1" <<<"$merged_heads"; }
+  holds() { local t; while read -r t; do git -C "$repo" merge-base --is-ancestor "$1" "$t" && return 0; done <<<"$tips"; return 1; }
+  # origin/<slug> left behind by a squash merge is that PR's head: nothing to lose.
+  if [[ -n "$remote_tip" ]] && ! grep -qx "$remote_tip" <<<"$merged_heads" &&
+     ! holds "$remote_tip"; then
     refuse "agent stopped; origin/$slug has commits the worktree lacks, worktree kept"; continue
   fi
-  if ! $abandon && ! git -C "$repo" merge-base --is-ancestor "$tip" "$base" &&
-     [[ -z "$(gh pr list --repo "$gh" --head "$slug" --state merged --json headRefOid |
-       jq -r --arg tip "$tip" '.[] | select(.headRefOid == $tip) | .headRefOid')" ]]; then
-    refuse "agent stopped; tip ${tip:0:7} is not merged (--abandon discards it), worktree kept"; continue
+  if ! $abandon; then
+    unmerged=$(while read -r t; do merged "$t" || echo "${t:0:7}"; done <<<"$tips")
+    [[ -z "$unmerged" ]] || { refuse "agent stopped; ${unmerged//$'\n'/, } not merged (--abandon discards it), worktree kept"; continue; }
   fi
   if ! err=$(git -C "$repo" worktree remove "$path" 2>&1); then
     refuse "agent stopped; ${err#fatal: }"; continue
   fi
-  git -C "$repo" branch -D "$slug" >/dev/null
+  # A detached worktree's branch may already be gone.
+  if git -C "$repo" show-ref --verify --quiet "refs/heads/$slug"; then
+    git -C "$repo" branch -D "$slug" >/dev/null
+  fi
   # The prune above dropped branches GitHub deleted on merge; the lease keeps a
   # push that landed since.
   if [[ -n "$remote_tip" ]] && ! err=$(git -C "$repo" push origin --delete --force-with-lease="$slug:$remote_tip" "$slug" --quiet 2>&1); then

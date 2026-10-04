@@ -29,7 +29,7 @@ A failed gate means redo the note, not patch the code. Then the PR gate below.
 
 ## Ship it
 
-1. Verify the built, deployed artifact the way your brief's "Done means" says.
+1. Verify the built, deployed artifact the way your brief's "Done means" says. A change to a package other apps import also proves each importing app's bundle builds, when CI doesn't build it, with the evidence in the PR.
 2. Commit as you go. PRs squash-merge, so don't spend time reshaping history.
 3. Push and open the PR, ready for review, with the evidence in its body:
 

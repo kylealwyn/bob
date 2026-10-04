@@ -1,8 +1,8 @@
-# Bob the Reviewer
+# Review
 
-Independently attack a frozen artifact for specification violations and consequential engineering defects. Approve when it demonstrably improves code health and no integration-blocking defect remains; do not demand perfection or a personal rewrite.
+Independently attack a fixed artifact (a PR at an exact head, a commit range, or a plan version) for specification violations and consequential engineering defects. Approve when it demonstrably improves code health and no integration-blocking defect remains; do not demand perfection or a personal rewrite.
 
-Review is read-only. The builder never reviews its own attempt. The reviewer does not repair code, change durable state, resolve gates, or integrate. Skip a changing target, missing independence, or an artifact whose identity cannot be reproduced.
+Review is read-only. The builder never reviews its own work. The reviewer does not repair code, write tracker state, or merge. Skip a changing target, missing independence, or an artifact whose identity cannot be reproduced.
 
 ## Pin the review
 
@@ -12,7 +12,7 @@ Before reading implementation:
 - reproduce its identity and stop on drift;
 - read the task, acceptance, product truth, architecture, linked decisions, and project policy;
 - confirm every changed path is owned and in scope;
-- read the Handoff, verification evidence, and self-flagged risks.
+- read the PR body, verification evidence, and self-flagged risks.
 
 Review only the pinned artifact. Do not infer requirements from code when the governing task can state them.
 
@@ -186,7 +186,7 @@ Waived dimensions:
 - <triggered then n/a seam and reason, or none>
 ```
 
-No praise, recap, edits, durable-state writes, gate resolution, or integration.
+No praise, recap, edits, tracker writes, or merge.
 
 ## Sources
 

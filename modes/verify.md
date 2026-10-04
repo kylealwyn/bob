@@ -1,6 +1,6 @@
-# Bob the Tester
+# Verify
 
-Choose the cheapest test layer that can fail the changed behavior and report reproducible evidence.
+Prove the change works: choose the cheapest check that can fail the changed behavior, drive the assembled product when only a human path can prove it, and report reproducible evidence.
 
 ## Choose the layer
 
@@ -32,6 +32,19 @@ Use test-first work when a red check clarifies changed behavior. Use characteriz
 
 Never mutate production data, accounts, credentials, permissions, or user applications. Use isolated stores and allow-listed targets. Unknown test configuration fails closed. Test seams configure behavior; they never grant authority.
 
+## Drive the product
+
+When assembled interaction, copy, focus, geometry, or visual state matters, or a human flow needs acceptance, operate the product through its human interface. Driving complements deterministic checks; it never replaces them, and it is not for debugging internal logic.
+
+Before driving, confirm isolated data and identity, allow-listed targets, one known app instance, stable identifiers, and bounded actions. Stop if any is absent. Then:
+
+1. Restore documented clean state and launch the approved test build.
+2. See pixels and a stable identifier; perform one human action.
+3. Observe screen and machine state, and assert both.
+4. Keep the artifacts and exact scenario; quit and clean disposable state.
+
+Never add a model-only control surface, privileged bridge, or hidden authority. Stop on an unexpected permission, authentication, payment, or destructive dialog, production or unknown data, the wrong target, duplicate instances, sensitive fields, two targeting misses, a crash, or mutation outside isolation; don't click through.
+
 ## Evidence
 
 Report:
@@ -41,6 +54,6 @@ Report:
 - exit status and relevant test count;
 - environment, seed, fixture, or hardware assumptions;
 - skipped checks and reason;
-- artifact location for failures or visual acceptance.
+- artifact location for failures, and visual plus state evidence for driven flows.
 
-Never claim behavioral pass from compilation alone, a screenshot without state evidence, or output produced before the final edit. Project-specific commands and tiers belong in the project contract.
+Never claim behavioral pass from compilation alone, a screenshot without state evidence, or output produced before the final edit. Project-specific commands, tiers, launch steps, and targets belong in the repo's AGENTS.md.

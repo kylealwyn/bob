@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# close [--abandon] <slug>...
+#
+# Ends a worker: stops its agent (closes its Herdr workspace, if any), then
+# removes the worktree and deletes the branch locally and on origin. Prints one
+# line per slug; exits non-zero if any was refused.
+#
+# It refuses, keeping everything, when the branch has an open PR or the agent
+# is mid-turn. It stops leftover dev processes in the tree and discards
+# regenerated *.gen.* files. After the
+# agent stops, so nothing written on the way out is missed, it refuses when:
+#   - the worktree has uncommitted or untracked files;
+#   - origin/<slug> has commits the worktree lacks;
+#   - the tip is neither on the default branch nor the head of a merged PR
+#     (squash merges leave it off the default branch), unless --abandon.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+
+abandon=false
+[[ "${1:-}" == --abandon ]] && { abandon=true; shift; }
+[[ $# -ge 1 ]] || die "usage: close [--abandon] <slug>..."
+
+gh=$(gh_repo)
+git -C "$repo" fetch origin --prune --quiet
+failed=0
+refuse() { echo "$slug: $*"; failed=1; }
+
+for slug in "$@"; do
+  path=$(git -C "$repo" worktree list --porcelain | awk -v want="$slug" '
+    /^worktree / {p = substr($0, 10)} /^branch / && $0 == "branch refs/heads/" want {print p; exit}')
+  [[ -n "$path" ]] || { refuse "no worktree on branch $slug"; continue; }
+  [[ "$path" != "$repo" ]] || { refuse "is the main checkout"; continue; }
+  pr=$(gh pr list --repo "$gh" --head "$slug" --state open --json number --jq '.[0].number // empty')
+  [[ -z "$pr" ]] || { refuse "PR #$pr is still open, not closing"; continue; }
+
+  # A worker often sends its report before its turn ends (tracker updates,
+  # notes); stopping it mid-turn truncates those writes.
+  if command -v herdr >/dev/null && [[ "$(herdr agent get "$slug" 2>/dev/null | jq -r '.result.agent.agent_status // empty')" == working ]]; then
+    refuse "agent is mid-turn, not closing"; continue
+  fi
+
+  # A worker's workspace exists only under Herdr; the Foreman's fast path has none.
+  # With no Herdr server running there is no live workspace to stop.
+  [[ "${HERDR_ENV:-}" != 1 ]] || command -v herdr >/dev/null || die "inside Herdr but the herdr CLI isn't on PATH"
+  if command -v herdr >/dev/null; then
+    list=$(herdr worktree list --cwd "$repo" 2>&1 || true)
+    code=$(jq -r '.error.code // empty' <<<"$list" 2>/dev/null || echo unparsed)
+    [[ -z "$code" || "$code" == server_not_running ]] || die "herdr worktree list failed: $list"
+    workspace=$(jq -r --arg p "$path" '.result.worktrees[]? | select(.path == $p) | .open_workspace_id // empty' <<<"$list")
+    [[ -z "$workspace" ]] || herdr workspace close "$workspace" >/dev/null
+  fi
+
+  # A dev server can outlive its worker with its cwd in the tree, and it
+  # regenerates files (*.gen.*) after the last commit; neither is the
+  # worker's work. lsof exits 1 on files it can't stat.
+  { lsof +D "$path" 2>/dev/null || true; } | awk 'NR > 1 && $4 == "cwd" {print $2}' | sort -u |
+    while read -r pid; do kill "$pid" 2>/dev/null || true; done
+  git -C "$path" checkout -q -- ':(glob)**/*.gen.*' 2>/dev/null || true
+
+  tip=$(git -C "$path" rev-parse HEAD)
+  remote_tip=$(git -C "$repo" rev-parse --verify --quiet "refs/remotes/origin/$slug" || true)
+  if [[ -n "$remote_tip" ]] && ! git -C "$repo" merge-base --is-ancestor "$remote_tip" "$tip"; then
+    refuse "agent stopped; origin/$slug has commits the worktree lacks, worktree kept"; continue
+  fi
+  if ! $abandon && ! git -C "$repo" merge-base --is-ancestor "$tip" "$base" &&
+     [[ -z "$(gh pr list --repo "$gh" --head "$slug" --state merged --json headRefOid |
+       jq -r --arg tip "$tip" '.[] | select(.headRefOid == $tip) | .headRefOid')" ]]; then
+    refuse "agent stopped; tip ${tip:0:7} is not merged (--abandon discards it), worktree kept"; continue
+  fi
+  if ! err=$(git -C "$repo" worktree remove "$path" 2>&1); then
+    refuse "agent stopped; ${err#fatal: }"; continue
+  fi
+  git -C "$repo" branch -D "$slug" >/dev/null
+  # The prune above dropped branches GitHub deleted on merge; the lease keeps a
+  # push that landed since.
+  if [[ -n "$remote_tip" ]] && ! err=$(git -C "$repo" push origin --delete --force-with-lease="$slug:$remote_tip" "$slug" --quiet 2>&1); then
+    refuse "closed, but deleting origin/$slug failed: ${err##*$'\n'}"; continue
+  fi
+  echo "$slug: closed"
+done
+exit "$failed"

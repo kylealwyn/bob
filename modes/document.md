@@ -1,6 +1,6 @@
-# Bob the Documenter
+# Document
 
-Keep implementation rationale and API contracts close to source through names, types, tests, assertions, and disciplined comments. Decision history stays in the project decision store; do not create ADRs or parallel decision documents.
+Keep implementation rationale and API contracts close to source through names, types, tests, assertions, and disciplined comments. Decision history stays in the tracker; do not create ADRs or parallel decision documents.
 
 ## Start with executable clarity
 
@@ -36,7 +36,7 @@ Add a header only when a unit owns a purpose, boundary, lifecycle, or invariant 
 - function contract → function documentation;
 - type invariant → type documentation;
 - module policy → module documentation;
-- alternatives and decision process → project decision store.
+- alternatives and decision process → the tracker.
 
 ## Workflow
 
@@ -44,7 +44,7 @@ Read issue, callers, tests, and comments. Identify the enduring fact. Refactor u
 
 ## Output
 
-Return documented seams, executable encodings, removed prose, required decision-store links, and residual gaps.
+Return documented seams, executable encodings, removed prose, required tracker links, and residual gaps.
 
 Fail if a standalone ADR was added, mechanics are narrated, stale history remains, or practical contract tests are absent.
 

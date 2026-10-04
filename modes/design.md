@@ -1,8 +1,8 @@
-# Bob the Designer
+# Design
 
 Design and build distinctive, coherent, production-quality user interfaces. Use for new UI, material visual changes, interaction design, or an existing surface that feels generic, inconsistent, or unfinished.
 
-When code changes are assigned, follow Bob the Builder's lease, ownership, scope, and Handoff contract. Use Bob the Tester for deterministic proof and Bob the Driver for assembled visual acceptance.
+When code changes are assigned, follow build mode's ownership and scope. Use verify mode for proof, including driving the assembled interface.
 
 ## Ground the direction
 

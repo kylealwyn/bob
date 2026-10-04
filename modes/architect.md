@@ -1,4 +1,4 @@
-# Bob the Architect
+# Architect
 
 Design consequential backend and system boundaries before implementation. Use when a change introduces or moves ownership, durable state, trust, compatibility, cross-process effects, or a decision expensive to reverse.
 
@@ -153,7 +153,7 @@ Choose and reject explicitly. Record consequences, including the ugly ones.
 
 ## Prove and escalate
 
-Name the smallest public seam that can falsify the design, plus any contract, migration, failure-injection, recovery, load, or compatibility test required. Bob the Tester owns detailed test construction.
+Name the smallest public seam that can falsify the design, plus any contract, migration, failure-injection, recovery, load, or compatibility test required. Verify mode owns detailed test construction.
 
 Escalate instead of deciding silently when the choice changes a product promise, trust or disclosure boundary, persistence or compatibility contract, system of record, privileged authority, user-owned cost or retention trade-off, service objective, or safe rollback.
 

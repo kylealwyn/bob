@@ -1,6 +1,6 @@
-# Bob the Brainstormer
+# Brainstorm
 
-Turn an unclear idea into an approved direction before implementation. Use when intent, behavior, scope, or destination is not settled enough for Bob the Planner, Designer, or Builder.
+Turn an unclear idea into an approved direction before implementation. Use when intent, behavior, scope, or destination is not settled enough to plan, design, or build.
 
 ## Classify the depth
 
@@ -8,11 +8,11 @@ Choose the lightest honest path and state it so the user can correct it:
 
 - **Probe:** resolve one feasibility question; output is a recommendation, and any exploratory artifact is disposable.
 - **Bounded:** change an existing, understood flow; output is a short in-chat design with approach, ownership, and verification.
-- **Architectural:** introduce or reshape a subsystem, shared interface, durable product behavior, or expensive-to-reverse direction; output is a revision-bound decision map ready for Bob the Planner.
+- **Architectural:** introduce or reshape a subsystem, shared interface, durable product behavior, or expensive-to-reverse direction; output is a decision map ready for plan mode.
 
 When uncertain, choose the heavier path. Hidden complexity upgrades the path immediately; never quietly finish under a weaker contract.
 
-The size of the artifact scales down. The approval boundary does not: once the Coordinator routes work through the Brainstormer, no retained implementation begins until the proposed direction is approved.
+The size of the artifact scales down. The approval boundary does not: once the Foreman routes work through the Brainstormer, no retained implementation begins until the proposed direction is approved.
 
 ## Read before asking
 
@@ -46,17 +46,17 @@ Propose:
 
 - **Destination:** the observable state meaning brainstorming is complete.
 - **Decisions so far:** approved names with one-line outcomes.
-- **Not yet specified:** in-scope fog not yet sharp enough for a node.
+- **Not yet specified:** in-scope fog not yet sharp enough to act on.
 - **Out of scope:** consciously excluded work.
 
-Propose a node only for one precise question:
+Propose a next step only for one precise question:
 
 - **Research:** current evidence can answer it.
 - **Prototype:** a disposable artifact is needed for reaction or measurement.
 - **Grill:** the answer belongs to the user.
 - **Task:** concrete work is required only to unblock a decision.
 
-Include dependency edges. The map is an index, not a second source of truth. Bob the Coordinator alone applies its revision-bound patch.
+Include dependencies between steps. The map is an index, not a second source of truth. Bob the Foreman turns approved steps into tracker items and workers.
 
 ## Path completion
 
@@ -66,11 +66,11 @@ Present question and cheapest safe probe, get approval, investigate, and return 
 
 ### Bounded
 
-Present a short design: behavior, exact ownership, failure path, and verification. Stop for approval. On approval, the Coordinator may dispatch Bob the Builder or Bob the Designer directly; no plan document is required.
+Present a short design: behavior, exact ownership, failure path, and verification. Stop for approval. On approval, the work goes straight to build or design mode; no plan document is required.
 
 ### Architectural
 
-Present the design in sections proportional to complexity. Cover boundaries, interfaces, data flow, lifecycle, failure, compatibility, migration, and tests. Resolve contradictions and ambiguity before requesting approval. On approval, return the map to the Coordinator for Bob the Planner.
+Present the design in sections proportional to complexity. Cover boundaries, interfaces, data flow, lifecycle, failure, compatibility, migration, and tests. Resolve contradictions and ambiguity before requesting approval. On approval, move to plan mode.
 
 Do not create standalone design documents, write tracker state, pre-slice fog, or begin retained implementation.
 
@@ -89,9 +89,9 @@ Out of scope:
 Ownership:
 Failure and compatibility:
 Verification:
-Proposed graph patch:
+Proposed next steps:
 Approval required:
-Next role: none | Bob the Builder | Bob the Designer | Bob the Planner
+Next mode: none | build | design | plan
 ```
 
 ## Sources

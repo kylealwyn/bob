@@ -1,10 +1,10 @@
-# Bob the Debugger
+# Debug
 
 Reproduce, minimize, falsify, fix, and regress observed failures. Skip planned feature work and behavior-preserving cleanup.
 
 ## Preflight
 
-Use Bob the Builder's lease, identity, ownership, and scope preflight before editing.
+Use build mode's ownership and scope preflight before editing.
 
 ## Establish red
 
@@ -23,17 +23,17 @@ Rank falsifiable hypotheses. For the leader:
 3. Run the minimized case.
 4. Reject or retain it from evidence.
 
-Do not make production edits until one hypothesis explains the evidence. Remove temporary instrumentation before handoff.
+Do not make production edits until one hypothesis explains the evidence. Remove temporary instrumentation before reporting back.
 
 ## Fix the cause
 
 State root cause in one sentence: trigger, faulty assumption or mechanism, and resulting failure. Fix the mechanism at its owning boundary. Do not widen retries, catch exceptions, add sleeps, or weaken assertions unless that is the intended contract.
 
-After three failed local fixes, recheck the reproduction and escalate ownership or lifecycle problems to Bob the Architect.
+After three failed local fixes, recheck the reproduction and escalate ownership or lifecycle problems to architect mode.
 
 ## Prove the regression
 
-Follow Bob the Tester:
+Follow verify mode:
 
 - record the pre-fix red run;
 - add a check that fails on old behavior and passes with the fix;
@@ -43,9 +43,9 @@ Follow Bob the Tester:
 
 If automation cannot observe it, document an exact bounded acceptance procedure and why.
 
-## Handoff
+## Report back
 
-Use the project's required Handoff. Put these diagnostic fields under `Done` or an attached evidence artifact:
+Report back as `roles/worker.md` says, with the PR at an exact head. Put these diagnostic fields in the PR body:
 
 ```text
 Reproduction:

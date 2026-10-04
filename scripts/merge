@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# merge <pr> <sha> — squash-merge a worker's PR at exactly the head the
+# Foreman approved, or hold.
+#
+# <sha> is the PR head the worker reported (`merge <head-sha>`), not a merge
+# commit. It holds, exiting non-zero with the reason, unless all are true:
+#   - the PR is open, not a draft, and its head is <sha>;
+#   - our `Bob review at <sha>` comment says Fable pass and Codex has no P0/P1;
+#   - the required checks (all checks when none are required) passed on it.
+# Then it merges with --match-head-commit, so a push that lands in between
+# fails the merge, and prints `merged #<pr> <sha> as <merge commit>` only once
+# GitHub reports the PR merged. Announce a merge only after that line.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+
+n="${1:?usage: merge <pr> <sha>}"
+want="${2:?usage: merge <pr> <sha>}"
+hold() { echo "hold #$n: $*" >&2; exit 1; }
+
+gh=$(gh_repo)
+me=$(gh api user --jq .login)
+pr=$(gh pr view "$n" --repo "$gh" --json state,isDraft,headRefOid,comments)
+[[ "$(jq -r .state <<<"$pr")" == OPEN ]] || hold "PR is $(jq -r .state <<<"$pr")"
+[[ "$(jq -r .isDraft <<<"$pr")" == false ]] || hold "PR is a draft"
+head=$(jq -r .headRefOid <<<"$pr")
+[[ ${#want} -ge 7 && "$head" == "$want"* ]] || hold "PR head is ${head:0:7}, not the reviewed ${want:0:7}"
+
+review=$(jq -r --arg me "$me" --arg head "$head" \
+  '[.comments[] | select(.author.login == $me and (.body | startswith("Bob review at \($head)")))] | last | .body // empty' <<<"$pr")
+[[ -n "$review" ]] || hold "no Bob review at ${head:0:7}; run scripts/review on it"
+[[ "$review" == *"Fable pass"* ]] || hold "review isn't clean: ${review#*: }"
+[[ ! "$review" =~ Codex[^·]*P[01]\  ]] || hold "Codex has P0/P1 findings: ${review#*: }"
+
+# gh pr checks exits non-zero for pending or failing checks and for none at
+# all, so read its JSON and judge the buckets here.
+checks=$(gh pr checks "$n" --repo "$gh" --required --json name,bucket 2>&1 || true)
+if ! jq -e 'type == "array"' >/dev/null 2>&1 <<<"$checks"; then
+  checks=$(gh pr checks "$n" --repo "$gh" --json name,bucket 2>&1 || true)
+fi
+if jq -e 'type == "array"' >/dev/null 2>&1 <<<"$checks"; then
+  bad=$(jq -r '[.[] | select(.bucket | IN("pass", "skipping") | not) | "\(.name): \(.bucket)"] | join(", ")' <<<"$checks")
+  [[ -z "$bad" ]] || hold "checks not green: $bad"
+elif [[ "$checks" != *"no checks reported"* ]]; then
+  hold "couldn't read checks: $checks"
+fi
+
+gh pr merge "$n" --repo "$gh" --squash --match-head-commit "$head" >/dev/null || hold "gh pr merge refused"
+merged=$(gh pr view "$n" --repo "$gh" --json state,mergeCommit --jq 'select(.state == "MERGED") | .mergeCommit.oid')
+[[ -n "$merged" ]] || hold "gh accepted the merge but the PR isn't merged yet"
+echo "merged #$n ${head:0:7} as ${merged:0:7}"

@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+"""watch — print a line the moment a worker in this repo needs the Foreman.
+
+Run it as a Monitor; each line is an event: `<event> <pane> <worker> <title>`.
+
+  blocked   the agent shows an approval or question form
+  done      the agent finished a turn (not necessarily the task)
+  exited    the worker's pane or workspace closed
+
+Workers are named Herdr agents in checkouts of this repo (the user's own
+sessions are unnamed). A worker spawned while this runs is picked up from
+Herdr's pane_updated event. Anything subtler (an agent that quit inside its
+pane, a stalled turn) is the groom's job: `status` shows it.
+"""
+import json
+import os
+import selectors
+import socket
+import subprocess
+import sys
+
+if os.environ.get("HERDR_ENV") != "1":
+    sys.exit("watch: not running inside Herdr")
+
+
+def common_dir(cwd):
+    if not cwd:  # git -C "" would mean the current directory
+        return None
+    try:
+        return subprocess.check_output(
+            ["git", "-C", cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            stderr=subprocess.DEVNULL, text=True).strip()
+    except (subprocess.CalledProcessError, FileNotFoundError, NotADirectoryError):
+        return None
+
+
+COMMON = common_dir(os.getcwd()) or sys.exit("watch: run from inside the project's git checkout")
+SELF = os.environ.get("HERDR_PANE_ID")
+selector = selectors.DefaultSelector()
+watched = {}  # pane_id -> agent
+
+
+def agent(pane_id):
+    try:
+        out = subprocess.check_output(["herdr", "agent", "get", pane_id], stderr=subprocess.DEVNULL)
+        return json.loads(out)["result"]["agent"]
+    except (subprocess.CalledProcessError, KeyError, json.JSONDecodeError):
+        return None
+
+
+def ours(a):
+    return bool(a and a.get("name") and a["pane_id"] != SELF and common_dir(a.get("cwd")) == COMMON)
+
+
+def report(event, pane_id):
+    a = watched.get(pane_id) or {}
+    print(f"{event} {pane_id} {a.get('name', '?')} {a.get('terminal_title_stripped', '')}", flush=True)
+
+
+def subscribe(subscriptions, pane_id=None):
+    """Subscribe on a new socket and wait for Herdr's ack, so a status read
+    after this returns can't miss a transition no event will report."""
+    sock = socket.socket(socket.AF_UNIX)
+    sock.connect(os.environ["HERDR_SOCKET_PATH"])
+    sock.sendall((json.dumps({"id": "watch", "method": "events.subscribe",
+                              "params": {"subscriptions": subscriptions}}) + "\n").encode())
+    buf = b""
+    while b"\n" not in buf:
+        chunk = sock.recv(65536)
+        if not chunk:
+            sys.exit("watch: Herdr closed the socket before acknowledging a subscription")
+        buf += chunk
+    ack, buf = buf.split(b"\n", 1)
+    if "error" in (msg := json.loads(ack)):
+        sock.close()
+        if msg["error"].get("code") == "pane_not_found":  # closed while we looked it up
+            return False
+        sys.exit(f"watch: {msg['error']}")
+    selector.register(sock, selectors.EVENT_READ, data={"buf": buf, "pane_id": pane_id})
+    return True
+
+
+def watch(a):
+    if not subscribe([{"type": "pane.agent_status_changed", "pane_id": a["pane_id"]}], a["pane_id"]):
+        return
+    watched[a["pane_id"]] = a
+    # A worker that blocked or finished before the subscription began gets no event.
+    if (now := agent(a["pane_id"])) and now.get("agent_status") in ("blocked", "done"):
+        report(now["agent_status"], a["pane_id"])
+
+
+def forget(pane_id):
+    watched.pop(pane_id, None)
+    for key in list(selector.get_map().values()):
+        if key.data["pane_id"] == pane_id:
+            selector.unregister(key.fileobj)
+            key.fileobj.close()
+
+
+def handle(line):
+    msg = json.loads(line)
+    if "error" in msg:
+        sys.exit(f"watch: {msg['error']}")
+    # Status events use the subscription's dotted name; the rest use underscores.
+    event, data = msg.get("event"), msg.get("data", {})
+    if event == "pane.agent_status_changed" and data.get("agent_status") in ("blocked", "done"):
+        report(data["agent_status"], data["pane_id"])
+    elif event in ("pane_exited", "pane_closed") and data.get("pane_id") in watched:
+        report("exited", data["pane_id"])
+        forget(data["pane_id"])
+    elif event == "workspace_closed":  # closing a workspace emits only this
+        for pane_id in [p for p, a in watched.items() if a.get("workspace_id") == data.get("workspace_id")]:
+            report("exited", pane_id)
+            forget(pane_id)
+    elif event == "pane_updated":  # naming an agent emits this, without the name
+        pane_id = data.get("pane", {}).get("pane_id")
+        if pane_id and pane_id not in watched and ours(a := agent(pane_id)):
+            watch(a)
+
+
+# Discovery first, so a worker named during the snapshot still arrives as an event.
+subscribe([{"type": t} for t in ("pane.updated", "pane.exited", "pane.closed", "workspace.closed")])
+for a in json.loads(subprocess.check_output(["herdr", "agent", "list"]))["result"]["agents"]:
+    if ours(a):
+        watch(a)
+
+while True:
+    # Handle lines already buffered (some arrive with an ack, and handling one
+    # can subscribe a new pane) before blocking.
+    while buffered := [k for k in selector.get_map().values() if b"\n" in k.data["buf"]]:
+        for key in buffered:
+            line, key.data["buf"] = key.data["buf"].split(b"\n", 1)
+            handle(line)
+    for key, _ in selector.select():
+        chunk = key.fileobj.recv(65536)
+        if not chunk:
+            if key.data["pane_id"] is None:
+                sys.exit("watch: Herdr closed the discovery subscription")
+            forget(key.data["pane_id"])  # the pane is gone; status shows the rest
+            continue
+        key.data["buf"] += chunk

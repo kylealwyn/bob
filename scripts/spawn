@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# spawn <slug> <brief-file>
+#
+# Opens a fresh worktree of the current repo as a Herdr workspace without taking
+# focus, runs the repo's worktree setup, starts a Claude worker on Opus in its
+# root pane under the agent name <slug>, and submits the brief as the first
+# message. Prints one JSON line describing the new workspace.
+#
+# The base is origin/<slug> when that branch exists on origin (picking up a
+# pushed branch or PR), otherwise the default branch, after a pruning fetch.
+#
+# Setup is the [setup] script of the main checkout's Codex local environment
+# (.codex/environments/*.toml), the one place a repo already declares how to
+# prepare a fresh worktree. It runs in the new worktree. No file, no setup.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+require_herdr
+
+slug="${1:?usage: spawn <slug> <brief-file>}"
+brief_file="${2:?usage: spawn <slug> <brief-file>}"
+
+# The slug is also the Herdr agent name, which has this grammar.
+[[ "$slug" =~ ^[a-z][a-z0-9_-]{0,31}$ ]] || die "slug must match [a-z][a-z0-9_-]{0,31}: $slug"
+[[ -s "$brief_file" ]] || die "brief file is empty or missing: $brief_file"
+
+if git -C "$repo" worktree list --porcelain | grep -qx "branch refs/heads/$slug"; then
+  die "$slug already has a worktree; prompt its agent instead"
+fi
+# Agent names are global to the Herdr server, so a slug live in another repo is taken.
+herdr agent get "$slug" >/dev/null 2>&1 && die "agent $slug already exists (maybe in another repo); pick another slug"
+git -C "$repo" show-ref --verify --quiet "refs/heads/$slug" \
+  && die "local branch $slug exists without a worktree; pick another slug or open it with herdr worktree open"
+
+git -C "$repo" fetch origin --prune --quiet
+
+from=$base
+git -C "$repo" show-ref --verify --quiet "refs/remotes/origin/$slug" && from="origin/$slug"
+
+envs=("$repo"/.codex/environments/*.toml)
+[[ -e "${envs[0]}" ]] || envs=()
+(( ${#envs[@]} <= 1 )) || die "several Codex environments in $repo/.codex/environments; keep one"
+setup=""
+if (( ${#envs[@]} == 1 )); then
+  setup=$(python3 -c 'import sys, tomllib; print(tomllib.load(open(sys.argv[1], "rb")).get("setup", {}).get("script", ""))' "${envs[0]}")
+fi
+
+created=$(herdr worktree create --cwd "$repo" --branch "$slug" --base "$from" --no-focus)
+workspace=$(jq -r '.result.workspace.workspace_id' <<<"$created")
+pane=$(jq -r '.result.root_pane.pane_id' <<<"$created")
+path=$(jq -r '.result.worktree.path' <<<"$created")
+
+if [[ -n "${setup//[[:space:]]/}" ]]; then
+  script=$(mktemp "${TMPDIR:-/tmp}/bob-setup.XXXXXX")
+  printf '%s\n' "$setup" >"$script"
+  # The command text contains "setup-exit=%s", so only the printed status matches.
+  q=$(printf %q "$script")
+  herdr pane run "$pane" "bash -e $q; printf 'setup-exit=%s\n' \$?" >/dev/null
+  if ! herdr pane wait-output "$pane" --regex 'setup-exit=[0-9]+' --timeout 600000 >/dev/null ||
+     ! herdr pane read "$pane" --source recent-unwrapped --lines 40 | grep -q 'setup-exit=0'; then
+    # Undo only what spawn created; a picked-up origin/<slug> stays on origin.
+    herdr pane read "$pane" --source recent-unwrapped --lines 80 >&2 || true
+    herdr worktree remove --workspace "$workspace" --force >/dev/null
+    git -C "$repo" branch -D "$slug" >/dev/null 2>&1 || true
+    rm -f "$script"
+    die "setup failed or timed out (output above); worktree removed, fix the setup and spawn again"
+  fi
+  rm -f "$script"
+fi
+
+# Workers run on Opus; the foreman keeps the frontier model for itself.
+herdr agent start "$slug" --kind claude --pane "$pane" -- --dangerously-skip-permissions --model opus >/dev/null
+if ! herdr agent prompt "$slug" "$(cat "$brief_file")" --wait --until working --timeout 60000 >/dev/null; then
+  herdr pane read "$pane" --source visible >&2 || true
+  die "agent $slug started in $pane ($path) but didn't start working on the brief (screen above); answer what it shows, or close --abandon $slug"
+fi
+
+jq -nc --arg slug "$slug" --arg workspace "$workspace" --arg pane "$pane" --arg path "$path" --arg base "$from" \
+  --arg setup "${envs[0]:-none}" \
+  '{agent: $slug, workspace: $workspace, pane: $pane, path: $path, base: $base, setup: $setup}'

@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# status — every worker in this repo with its state, derived each time from
+# Herdr (the agent), git (its worktree), and GitHub (its PR). Nothing is stored.
+# The Foreman acts on the state column (roles/foreman.md, Worker states).
+#
+#   worker  state  pr  last commit  note
+#
+# States, first match wins:
+#   blocked     agent shows an approval or question form
+#   gone        workspace open, no agent
+#   working     agent mid-turn
+#   merged      a merged PR's head is HEAD
+#   unpushed    open PR whose head isn't HEAD (local commits not pushed)
+#   ci-red      open PR, a check failed or was cancelled
+#   ci-running  open PR, checks pending or stale
+#   reviewed    open PR, CI green or absent, our `Bob review` comment at HEAD
+#   unreviewed  open PR, CI green or absent, no review at HEAD
+#   no-pr       commits ahead of the default branch, no PR
+#   idle        nothing committed yet
+#
+# Workers on saved Herdr machines follow, with their agent status only, then
+# the user's own sessions in this repo (unnamed agents): blocked ones wait on
+# the user.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+require_herdr
+
+agents=$(repo_agents)
+gh=$(gh_repo)
+# Only reviews posted by this gh account count; anyone can comment on a public PR.
+me=$(gh api user --jq .login)
+
+pr_jq='
+  def ci: [.statusCheckRollup[] |
+      (.conclusion // "") as $c | (.state // "") as $s |
+      if ([$c, $s] | any(IN("FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE", "ERROR"))) then "fail"
+      elif ((.status // "COMPLETED") != "COMPLETED") or ($s | IN("PENDING", "EXPECTED")) or $c == "STALE" then "pending"
+      else "pass" end]
+    | if index("fail") then "fail" elif index("pending") then "pending" else "pass" end;
+  (map(select(.state == "OPEN"))[0]) as $open
+  | (map(select(.state == "MERGED" and .headRefOid == $head))[0]) as $merged
+  | if $merged then {pr: "#\($merged.number)", state: "merged"}
+    elif $open then
+      ([$open.comments[] | select(.author.login == $me and (.body | startswith("Bob review")))]) as $reviews
+      | ($reviews | map(select(.body | contains($head))) | last | .body // "") as $review
+      | ($open | ci) as $ci
+      | {pr: "#\($open.number)", rounds: ($reviews | length), review: ($review | sub("^Bob review[^:]*: "; "")),
+         state: (if $open.headRefOid != $head then "unpushed"
+                 elif $ci == "fail" then "ci-red" elif $ci == "pending" then "ci-running"
+                 elif $review != "" then "reviewed" else "unreviewed" end)}
+    else {pr: "", state: ""} end'
+
+row() { printf '%-24s %-11s %-6s %-12s %s\n' "$@"; }
+row worker state pr "last commit" note
+
+while IFS= read -r a; do
+  [[ -n "$a" ]] || continue
+  name=$(jq -r .name <<<"$a"); cwd=$(jq -r .cwd <<<"$a"); agent=$(jq -r .agent_status <<<"$a")
+  head=$(git -C "$cwd" rev-parse HEAD)
+  ahead=$(git -C "$cwd" rev-list --count "$base..HEAD")
+  last="-"; (( ahead == 0 )) || last=$(git -C "$cwd" log -1 --format=%cr | sed 's/ ago//')
+  dirty=$(git -C "$cwd" status --porcelain --untracked-files=all | grep -c . || true)
+  branch=$(git -C "$cwd" branch --show-current)
+  p='{"pr": "", "state": ""}'
+  [[ -z "$branch" ]] || p=$(gh pr list --repo "$gh" --head "$branch" --state all \
+    --json number,state,headRefOid,statusCheckRollup,comments | jq -c --arg head "$head" --arg me "$me" "$pr_jq")
+  case "$agent" in
+    blocked) state=blocked ;;
+    working) state=working ;;
+    *) state=$(jq -r .state <<<"$p")
+       [[ -n "$state" ]] || { (( ahead > 0 )) && state=no-pr || state=idle; } ;;
+  esac
+  note=""
+  (( dirty == 0 )) || note+="dirty $dirty; "
+  rounds=$(jq -r '.rounds // 0' <<<"$p"); (( rounds == 0 )) || note+="review rounds $rounds; "
+  review=$(jq -r '.review // ""' <<<"$p"); [[ -z "$review" ]] || note+="$review"
+  row "$name" "$state" "$(jq -r .pr <<<"$p")" "$last" "${note%; }"
+done < <(jq -c 'select(.name)' <<<"$agents")
+
+# A worker whose agent quit or crashed leaves its workspace open with no agent.
+live=$(jq -r '.workspace_id' <<<"$agents" | sort -u)
+herdr worktree list --cwd "$repo" | jq -r --arg repo "$repo" \
+  '.result.worktrees[] | select(.open_workspace_id and .path != $repo) | "\(.open_workspace_id) \(.path)"' |
+  while read -r workspace path; do
+    grep -qx "$workspace" <<<"$live" ||
+      row "$(git -C "$path" branch --show-current)" gone - - "workspace $workspace has no agent; pane: herdr pane list --workspace $workspace"
+  done
+
+# Workers on saved Herdr machines: their cwd is remote, so only the agent
+# status is known here, and the repo can't be checked.
+for m in $(herdr machine list --json 2>/dev/null | jq -r '.[]? | select(.enabled) | .label'); do
+  herdr --machine "$m" agent list 2>/dev/null |
+    jq -r '.result.agents[]? | select(.name) | [.name, .agent_status, .cwd] | @tsv' |
+    while IFS=$'\t' read -r name agent cwd; do row "$name@$m" "$agent" - - "remote, $cwd"; done
+done
+
+jq -r 'select(.name | not) | [.agent_status, .pane_id, (.cwd | split("/") | last), (.terminal_title_stripped // "")] | @tsv' <<<"$agents" |
+  while IFS=$'\t' read -r agent pane checkout title; do
+    row "user:$pane" "$agent" - - "$checkout: $title"
+  done

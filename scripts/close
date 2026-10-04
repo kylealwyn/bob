@@ -32,8 +32,12 @@ for slug in "$@"; do
   [[ -z "$pr" ]] || { refuse "PR #$pr is still open, not closing"; continue; }
 
   # A worker's workspace exists only under Herdr; the Conductor's fast path has none.
+  # With no Herdr server running there is no live workspace to stop.
   if command -v herdr >/dev/null; then
-    workspace=$(herdr worktree list --cwd "$repo" | jq -r --arg p "$path" '.result.worktrees[] | select(.path == $p) | .open_workspace_id // empty')
+    list=$(herdr worktree list --cwd "$repo" 2>&1 || true)
+    code=$(jq -r '.error.code // empty' <<<"$list" 2>/dev/null || echo unparsed)
+    [[ -z "$code" || "$code" == server_not_running ]] || die "herdr worktree list failed: $list"
+    workspace=$(jq -r --arg p "$path" '.result.worktrees[]? | select(.path == $p) | .open_workspace_id // empty' <<<"$list")
     [[ -z "$workspace" ]] || herdr workspace close "$workspace" >/dev/null
   fi
 

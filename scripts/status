@@ -10,9 +10,9 @@
 #   gone        workspace open, no agent
 #   working     agent mid-turn
 #   merged      a merged PR's head is HEAD
-#   reviewed    open PR with a `Bob review` comment at HEAD
 #   ci-red      open PR, a check failed or was cancelled
 #   ci-running  open PR, checks pending
+#   reviewed    open PR, CI green or absent, our `Bob review` comment at HEAD
 #   unreviewed  open PR, CI green or absent, no review at HEAD
 #   no-pr       commits ahead of the default branch, no PR
 #   idle        nothing committed yet
@@ -25,6 +25,8 @@ require_herdr
 
 agents=$(repo_agents)
 gh=$(gh_repo)
+# Only reviews posted by this gh account count; anyone can comment on a public PR.
+me=$(gh api user --jq .login)
 
 pr_jq='
   def ci: [.statusCheckRollup[] |
@@ -37,12 +39,12 @@ pr_jq='
   | (map(select(.state == "MERGED" and .headRefOid == $head))[0]) as $merged
   | if $merged then {pr: "#\($merged.number)", state: "merged"}
     elif $open then
-      ([$open.comments[] | select(.body | startswith("Bob review"))]) as $reviews
+      ([$open.comments[] | select(.author.login == $me and (.body | startswith("Bob review")))]) as $reviews
       | ($reviews | map(select(.body | contains($head))) | last | .body // "") as $review
+      | ($open | ci) as $ci
       | {pr: "#\($open.number)", rounds: ($reviews | length), review: ($review | sub("^Bob review[^:]*: "; "")),
-         state: (if $review != "" then "reviewed"
-                 else ($open | ci) as $ci
-                 | if $ci == "fail" then "ci-red" elif $ci == "pending" then "ci-running" else "unreviewed" end end)}
+         state: (if $ci == "fail" then "ci-red" elif $ci == "pending" then "ci-running"
+                 elif $review != "" then "reviewed" else "unreviewed" end)}
     else {pr: "", state: ""} end'
 
 row() { printf '%-24s %-11s %-6s %-12s %s\n' "$@"; }
@@ -58,7 +60,7 @@ while IFS= read -r a; do
   branch=$(git -C "$cwd" branch --show-current)
   p='{"pr": "", "state": ""}'
   [[ -z "$branch" ]] || p=$(gh pr list --repo "$gh" --head "$branch" --state all \
-    --json number,state,headRefOid,statusCheckRollup,comments | jq -c --arg head "$head" "$pr_jq")
+    --json number,state,headRefOid,statusCheckRollup,comments | jq -c --arg head "$head" --arg me "$me" "$pr_jq")
   case "$agent" in
     blocked) state=blocked ;;
     working) state=working ;;

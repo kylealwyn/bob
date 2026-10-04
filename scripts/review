@@ -65,7 +65,7 @@ run_review() {
     args+=(--model "$model")
   fi
   # Fresh ephemeral contexts and explicit resource isolation, not just a tool allowlist.
-  pi --print --mode json --no-approve --no-extensions --no-skills \
+  pi --offline --print --mode json --no-approve --no-extensions --no-skills \
     --no-prompt-templates --no-context-files --no-themes \
     --system-prompt "$bob/modes/review.md" --append-system-prompt "" \
     --extension "$bob/extensions/review.ts" --tools read,grep,find,ls,review_result \

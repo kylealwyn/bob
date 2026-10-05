@@ -74,7 +74,13 @@ for slug in "$@"; do
   # branch, and a worker can commit on either).
   tips=$(git -C "$path" rev-parse HEAD; git -C "$repo" rev-parse --verify --quiet "refs/heads/$slug" || true)
   remote_tip=$(git -C "$repo" rev-parse --verify --quiet "refs/remotes/origin/$slug" || true)
-  merged_heads=$(gh pr list --repo "$gh" --head "$slug" --state merged --json headRefOid --jq '.[].headRefOid') ||
+  # A worker may have worked on a tracker-named branch instead of the slug,
+  # so merged PRs are looked up by the slug branch and by the worktree's
+  # current branch, and a squash-merged head found either way is nothing to lose.
+  wt_branch=$(git -C "$path" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+  merged_heads=$(for b in "$slug" "$wt_branch"; do
+      [[ -n "$b" ]] && gh pr list --repo "$gh" --head "$b" --state merged --json headRefOid --jq '.[].headRefOid'
+    done) ||
     { refuse "agent stopped; couldn't list merged PRs, worktree kept"; continue; }
   merged() { git -C "$repo" merge-base --is-ancestor "$1" "$base" || grep -qx "$1" <<<"$merged_heads"; }
   holds() { local t; while read -r t; do git -C "$repo" merge-base --is-ancestor "$1" "$t" && return 0; done <<<"$tips"; return 1; }
@@ -90,6 +96,9 @@ for slug in "$@"; do
   if ! err=$(git -C "$repo" worktree remove "$path" 2>&1); then
     refuse "agent stopped; ${err#fatal: }"; continue
   fi
+  # The worktree's tracker-named branch, if any, is merged too; drop it so
+  # it can't block a later checkout.
+  [[ -z "$wt_branch" || "$wt_branch" == "$slug" ]] || git -C "$repo" branch -D "$wt_branch" >/dev/null 2>&1 || true
   # A detached worktree's branch may already be gone.
   if git -C "$repo" show-ref --verify --quiet "refs/heads/$slug"; then
     git -C "$repo" branch -D "$slug" >/dev/null

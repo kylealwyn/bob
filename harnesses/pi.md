@@ -1,6 +1,6 @@
 # Harness: Pi
 
-Pi runs the Foreman, workers, and fresh-context reviewers. Bob supplies the engineering method; Pi owns provider login, model selection, tools, and the saved conversation. Herdr owns the panes and agent lifecycle.
+Pi is the default for the Foreman, workers, and fresh-context reviewers. User instructions can select another agent CLI. Bob supplies the engineering method; Pi owns provider login, model selection, tools, and the saved conversation. Herdr owns the panes and agent lifecycle.
 
 ## Install
 
@@ -23,7 +23,13 @@ Log in with Pi's `/login`. Pick a frontier model with `/model`, and use `/scoped
 
 Resume the exact saved session, not just the last session in the directory: `pi --session <path-or-id>`. Herdr's Pi integration reports the session path. A restart keeps role and model from that session; do not start a fresh conversation to switch models. Inspect live git, PR, and tracker state before resuming tool effects whose outcomes may be unknown.
 
-Pi preserves prior conversation text and successful tool results across providers; provider-specific opaque thinking may not transfer. Stop an active run before switching. A provider error leaves the work and session intact: choose another authenticated model and continue explicitly.
+Pi preserves prior conversation text and successful tool results across providers; provider-specific opaque thinking may not transfer. Stop an active run before switching. A provider error leaves the work and session intact. Report the actual error and honor the user's choice of model and harness. Pi subscription access can differ from the provider's own CLI; a Pi error does not prove that CLI is unavailable. Never refuse an explicit harness change because Pi is the default, or substitute a different model without user direction.
+
+## User-directed harness change
+
+When the user requests another agent CLI, use Herdr's native agent lifecycle in the existing worker pane and worktree. Keep its name, branch, task and Foreman ownership. Before stopping the old agent, save a handoff containing the goal, decisions, exact saved-session reference, live git/PR state, evidence, pending work, resource ownership and authority. A saved Pi conversation remains resumable in Pi; another CLI needs this handoff, not Pi's session format.
+
+Wait for a safe idle boundary, stop the old agent, verify its pane returned to an available shell, then start the requested Herdr agent kind there with the requested model. Submit the handoff and verify an actual successful provider response and tool operation before saying work resumed. Report the running kind/model and result to the Foreman. Preserve the old conversation and any unknown tool outcomes; do not create a second writer, extra relay pane, or copy credentials. Use the requested CLI's own login and configured permissions. If it also fails, report its actual error and keep the task intact.
 
 ## Reviews
 

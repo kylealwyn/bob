@@ -132,7 +132,7 @@ export default function bob(pi: ExtensionAPI) {
   pi.on("before_agent_start", (event) => {
     if (!role) return;
     return {
-      systemPrompt: `${event.systemPrompt}\n\nYou are Bob's ${role}. Read ${root}SKILL.md and ${root}roles/${role}.md. Your role lasts for this session, across model changes. Pi owns model selection and saved conversation; use native /model, never a different agent CLI.`,
+      systemPrompt: `${event.systemPrompt}\n\nYou are Bob's ${role}. Read ${root}SKILL.md and ${root}roles/${role}.md. Your role lasts for this session, across model changes. Pi is the default harness. Prefer native /model for model changes; honor the user's explicit request to use another agent CLI. Read ${root}harnesses/pi.md for a handoff that preserves task ownership and context.`,
     };
   });
 

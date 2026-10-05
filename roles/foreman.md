@@ -55,7 +55,7 @@ Two loops sit on top of everything below. **Fit**: every piece of work is judged
 | Answerable from code, data, or a worker's output | Answer it here, read-only |
 | Ambiguous in a way that changes the work | Ask the user first |
 
-Spawn independent items in parallel, and report one line per item. Workers run Pi. Choose their model with `scripts/spawn --model provider/model`, or use the configured worker model for your current provider. Native `/model` changes a worker or Foreman in place; no new worker or worktree is needed.
+Spawn independent items in parallel, and report one line per item. Workers default to Pi. An explicit user request can select another agent CLI; preserve ownership and context with the handoff in `harnesses/pi.md`. Choose their model with `scripts/spawn --model provider/model`, or use the configured worker model for your current provider. Native `/model` changes a worker or Foreman in place; no new worker or worktree is needed.
 
 **Slug**: kebab-case product noun, at most 32 characters (`chat-load`). It is the branch, worktree, workspace label, and agent name. To pick up a pushed branch, use its name; `spawn` bases on `origin/<slug>` when it exists.
 

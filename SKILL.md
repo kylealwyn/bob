@@ -47,7 +47,7 @@ No config file. Everything comes from the checkout the Foreman runs in:
 | repo, default branch, PR repo | git common dir, `origin/HEAD`, `gh repo view` (`scripts/lib.sh`) |
 | worktree setup | `[setup].script` of the repo's one `.codex/environments/*.toml`; none if absent |
 | tracker | AGENTS.md: `trackers/linear.md` if work lives in Linear, else `trackers/github.md` |
-| harness | Pi for Foreman, workers, and reviews: `harnesses/pi.md`; this package supplies the extension and skill |
+| harness | Pi by default; explicit user requests can choose another agent CLI: `harnesses/pi.md`; this package supplies the extension and skill |
 | verification, preview lane, release or apply pipeline, merge authority | AGENTS.md or the session |
 | models | Pi login and editable provider/role assignments in `models.json`; workers follow the current provider’s worker default, reviews inherit the caller’s model; explicit `--model` or native `/model` overrides defaults |
 

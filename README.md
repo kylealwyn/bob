@@ -2,7 +2,7 @@
 
 Bob carries engineering work from a request to a verified PR. Pi owns the conversation, tools, login, and model selection. Bob supplies the roles, modes, worker briefs, review, and merge discipline. Herdr keeps the Foreman and workers in persistent panes, with one worktree per item.
 
-The Foreman and every worker can use different frontier models and change them during a task with Pi's `/model`. The role, saved conversation, branch, and worktree stay the same. Bob does not monitor usage or route providers automatically.
+The Foreman and every worker can use different frontier models and change them during a task with Pi's `/model`. The role, saved conversation, branch, and worktree stay the same. Bob does not monitor usage or route providers automatically. Pi is the default; explicit requests to use another agent CLI are honored with a handoff in the existing pane and worktree.
 
 ```text
 /bob <request> → Foreman in Pi (choose any logged-in frontier model)

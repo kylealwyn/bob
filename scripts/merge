@@ -5,7 +5,8 @@
 # <sha> is the PR head the worker reported (`merge <head-sha>`), not a merge
 # commit. It holds, exiting non-zero with the reason, unless all are true:
 #   - the PR is open, not a draft, and its head is <sha>;
-#   - our `Bob review at <sha>` comment says Fable pass and Codex has no P0/P1;
+#   - our `Bob review at <sha>` comment says Fable pass and Codex has no P0/P1,
+#     or a `Bob ruling at <sha>` comment from the Foreman declines them;
 #   - the required checks (all checks when none are required) passed on it.
 # Then it merges with --match-head-commit, so a push that lands in between
 # fails the merge, and prints `merged #<pr> <sha> as <merge commit>` only once
@@ -39,7 +40,14 @@ review=$(jq -r --arg me "$me" --arg head "$head" \
   '[.comments[] | select(.author.login == $me and (.body | startswith("Bob review at \($head)")))] | last | .body // empty' <<<"$pr")
 [[ -n "$review" ]] || hold "no Bob review at ${head:0:7}; run scripts/review on it"
 [[ "$review" == *"Fable pass"* ]] || hold "review isn't clean: ${review#*: }"
-[[ ! "$review" =~ Codex[^·]*P[01]\  ]] || hold "Codex has P0/P1 findings: ${review#*: }"
+# A Codex P0/P1 the Foreman has ruled on (declined with the reason, as a
+# `Bob ruling at <head>: ...` comment the Foreman posts) no longer holds the
+# merge; the ruling is the record the retro reads. Fable's verdict is never
+# ruled away.
+ruling=$(jq -r --arg me "$me" --arg head "$head" \
+  '[.comments[] | select(.author.login == $me and (.body | startswith("Bob ruling at \($head)")))] | last | .body // empty' <<<"$pr")
+[[ ! "$review" =~ Codex[^·]*P[01]\  || -n "$ruling" ]] ||
+  hold "Codex has P0/P1 findings: ${review#*: }; fix them, or post 'Bob ruling at $head: <finding> declined: <reason>' and retry"
 
 # gh pr checks exits non-zero for pending or failing checks and for none at
 # all, so read its JSON and judge the buckets here.

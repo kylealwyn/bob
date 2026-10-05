@@ -116,7 +116,8 @@ Every 10 minutes, and whenever `watch` prints:
 
 1. `scripts/status`, and act on each row by the table.
 2. Triage follow-ups in the tracker (see the tracker file), and file any a worker mentioned but didn't. Each gets a disposition: fold into the worker on that surface, spawn, ask the user, or close with the reason.
-3. Report only what changed or needs the user. A groom that moved nothing says nothing.
+3. Once an hour, list processes whose working directory is a worktree with no live worker (`lsof` on each `git worktree list` path) and stop them by pid; a finished worker's dev stack or watch server otherwise runs for days. Never touch a process in the user's own worktrees.
+4. Report only what changed or needs the user. A groom that moved nothing says nothing.
 
 `watch` prints `blocked`, `done`, or `exited` the moment it happens. `done` means a turn ended, not the task; the worker's report-back message is the completion signal. Never grep a pane for a reply token: your own prompt echoes there, and so does a worker's "not `merge <sha>`".
 

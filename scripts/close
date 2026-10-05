@@ -30,15 +30,15 @@ refuse() { echo "$slug: $*"; failed=1; }
 for slug in "$@"; do
   path=$(git -C "$repo" worktree list --porcelain | awk -v want="$slug" '
     /^worktree / {p = substr($0, 10)} /^branch / && $0 == "branch refs/heads/" want {print p; exit}')
-  # A worker that finished parks its worktree detached on the default branch,
-  # so the branch lookup finds nothing; the worktree is then the detached one
-  # spawn created, named by the slug. Only a detached one: another tool's
-  # worktree can end in the same name while on its own branch.
+  # A worker that finished may have parked its worktree detached, or worked
+  # on a branch named by the tracker instead of the slug; the branch lookup
+  # finds nothing either way. The worktree is then the one spawn created,
+  # named by the slug at the end of its path. Only one may match: another
+  # tool's worktree can end in the same name.
   if [[ -z "$path" ]]; then
     path=$(git -C "$repo" worktree list --porcelain | awk -v want="/$slug" '
-      /^worktree / {p = substr($0, 10)}
-      /^detached$/ && substr(p, length(p) - length(want) + 1) == want {print p}')
-    [[ "$(grep -c . <<<"$path")" -le 1 ]] || { refuse "several detached worktrees end in /$slug; remove the worker's by hand"; continue; }
+      /^worktree / {p = substr($0, 10); if (substr(p, length(p) - length(want) + 1) == want) print p}')
+    [[ "$(grep -c . <<<"$path")" -le 1 ]] || { refuse "several worktrees end in /$slug; remove the worker's by hand"; continue; }
   fi
   [[ -n "$path" ]] || { refuse "no worktree for $slug"; continue; }
   [[ "$path" != "$repo" ]] || { refuse "is the main checkout"; continue; }

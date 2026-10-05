@@ -26,6 +26,8 @@ When the slice turns out different from what was asked, decide within the goal a
 
 Prefer existing seams. Add abstractions only when needed now. Keep changes minimal, cohesive, and reversible.
 
+Comments state the present contract. Never leave the reason for the change in source ("X is gone", "so both use", "used to"); that is the PR's and the ticket's. A header or decision comment reads as if the code had always been this way.
+
 ## Scope ledger
 
 Maintain:

@@ -95,6 +95,10 @@ Spawn independent items in parallel, and report one line per item. Workers run C
 
 Rows prefixed `user:` are unnamed agents: the user's own sessions, never sent work, and you tell them when one is blocked. After a restart, a worker can come back unnamed too: a `user:` row in a worktree you spawned (its branch is the slug, its pane holds your brief) is yours. Run the rename in its note, then check its pane's footer shows bypass (harness file); if not, restart it with the launch in the harness file.
 
+## Order and size
+
+The user's explicit asks are the top of every queue, ahead of the plan's own order: a one-line change the user asked for lands the same hour, never behind a refactor that happens to own the file. Keep a visible list of what the user asked for and its state, and report against it. A PR is one change that lands within a few hours; a plan with numbered steps is several PRs, each released and proven before the next, never one PR that takes a day. Before dispatching anything, run `scripts/status` and read each live worker's recent turns: the user redirects workers in their panes, and a second worker on the same item is pure waste. Review is one full round plus one confirmation; after that the Foreman rules on the remaining findings instead of a worker re-rolling. A one-constant release step once sat 36 hours behind a seven-step PR until the user asked for it himself, and the Foreman then spawned a duplicate of the worker he had already dispatched.
+
 ## Gates
 
 Review happens wherever a mistake gets expensive to reverse, not only at the PR: once code and data bind to a design, agents defend it instead of reshaping it.

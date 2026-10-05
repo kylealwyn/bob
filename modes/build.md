@@ -26,6 +26,8 @@ When the slice turns out different from what was asked, decide within the goal a
 
 Prefer existing seams. Add abstractions only when needed now. Keep changes minimal, cohesive, and reversible.
 
+A shape change (a new layer, context, definition, or agent) brings a noun table to the PR body before the merge line: every new or touched name, which owner it belongs to (Chat, Agent, Channel kit in `docs/guides/domain-language.md`), and the one word it collapses to. Three names for one idea is a hold, not a follow-up.
+
 Comments state the present contract. Never leave the reason for the change in source ("X is gone", "so both use", "used to"); that is the PR's and the ticket's. A header or decision comment reads as if the code had always been this way.
 
 ## Scope ledger

@@ -60,7 +60,11 @@ fi
   printf '## Pull request\n\n%s\n\n' "${pr:-none open}"
   if [[ -n "$commits" ]]; then
     printf '## Commits\n\n'; git log --format='%h %s%n%n%b' "$base..$head"
-    printf '\n## Diff\n\n```diff\n'; git diff "$base...$head"; printf '```\n'
+    # Generator output (`linguist-generated` in .gitattributes, which GitHub
+    # collapses too) can outgrow the prompt; Fable reads it on demand.
+    printf '\n## Diff\n\nGenerated files are left out; read them if the review needs them:\n\n'
+    git diff --stat "$base...$head" -- ':(attr:linguist-generated)' | tail -1
+    printf '\n```diff\n'; git diff "$base...$head" -- . ':(exclude,attr:linguist-generated)'; printf '```\n'
   fi
 } >"$out/fable-prompt.md"
 

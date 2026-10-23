@@ -26,6 +26,8 @@ When the slice turns out different from what was asked, decide within the goal a
 
 Prefer existing seams. Add abstractions only when needed now. Keep changes minimal, cohesive, and reversible.
 
+Re-derive the design whenever the system under it changes: a dependency lands a new source of truth, or a review round's findings share one mechanism. Before patching, ask what you would build starting now from the current system. Two sources for one fact (a copy and a re-read of its origin) are the signal, and so is a fix that adds a guard, ref, or comparison to keep them agreeing. Redesign to one source and delete the other. KIN-2564 (#2916): once #2913 gave HQ its own copy of pull request checks and conversation, the viewer still re-read GitHub on each change, and two review rounds found four ways the sources disagreed; the fix was a viewer that reads only HQ's copy, with GitHub only for the diff it doesn't keep.
+
 A shape change (a new layer, context, definition, or agent) brings a noun table to the PR body before the merge line: every new or touched name, which owner it belongs to (Chat, Agent, Channel kit in `docs/guides/domain-language.md`), and the one word it collapses to. Three names for one idea is a hold, not a follow-up.
 
 Comments state the present contract. Never leave the reason for the change in source ("X is gone", "so both use", "used to"); that is the PR's and the ticket's. A header or decision comment reads as if the code had always been this way.

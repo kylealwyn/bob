@@ -192,6 +192,7 @@ No praise, recap, edits, tracker writes, or merge.
 
 A design note is reviewed before any code binds to it, because a schema, a wire contract, or a store gets expensive to change once code and data depend on it. Review it the way the principal engineer who owns the product would. Read the repo's AGENTS.md and the product doc it points to, and the existing code the note must fit or says it changes, and judge it against:
 
+- a call tree leads it and matches the code it changes: every function it adds or changes, what each calls, and every existing caller up to the entry points, with the delta marked;
 - the simplest thing that fully works; every noun and field has a real use case;
 - the final state: would you land here starting from scratch;
 - one way to do each thing, one source of truth;

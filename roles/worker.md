@@ -30,7 +30,7 @@ When your change touches a path CI doesn't exercise (a chart, a workflow or job 
 
 For a shared concept, stop twice before building on it, because a design is cheap to change until code and data depend on it:
 
-1. **Design note**, before any code binds to it: write it in a file outside the repo, run `scripts/review --note <file>`, and post the note, the review line, and the findings on your tracker item. Message the Foreman, then keep going on the parts that don't bind. Bind code only after the Foreman approves on the tracker item.
+1. **Design note**, before any code binds to it: write it in a file outside the repo, leading with the change's call tree: each function it adds or changes, what that calls, and what calls it up to the entry points, as a text tree with the delta in a `diff` fence (the repo's diagrams guide when it has one), run `scripts/review --note <file>`, and post the note, the review line, and the findings on your tracker item. Message the Foreman, then keep going on the parts that don't bind. Bind code only after the Foreman approves on the tracker item.
 2. **First interface commit** (the migration, types, or wire protocol that makes the note real): run `scripts/review --note <file>` on it, post the result to the tracker item, and wait for the Foreman's approval before building on it.
 
 A failed gate means redo the note, not patch the code. Then the PR gate below.
